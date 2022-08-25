@@ -1,0 +1,10 @@
+{
+  "files.associations": {
+    "*.asm": "riscv",
+  },
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 2000,
+  "files.exclude": {
+    "**/.dccache": true,
+  },
+}
