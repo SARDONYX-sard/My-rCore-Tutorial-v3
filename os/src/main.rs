@@ -2,6 +2,7 @@
 #![no_main]
 #![no_std]
 
+#[macro_use]
 mod console;
 mod lang_items;
 mod sbi;

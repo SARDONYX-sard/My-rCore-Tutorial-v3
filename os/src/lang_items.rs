@@ -1,6 +1,6 @@
 use core::panic::PanicInfo;
 
-use crate::{println, sbi::shutdown};
+use crate::sbi::shutdown;
 
 /// Prints to the standard output, with a newline
 /// and shutdown.
