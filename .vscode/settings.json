@@ -9,6 +9,9 @@
   },
   "cSpell.words": [
     "dccache",
-    "riscv"
+    "ebss",
+    "putchar",
+    "riscv",
+    "sbss"
   ],
 }
