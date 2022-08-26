@@ -1,0 +1,13 @@
+{
+  "recommendations": [
+    "editorconfig.editorconfig",
+    "ms-vscode-remote.remote-containers",
+    "pkief.material-icon-theme",
+    "richie5um2.vscode-sort-json",
+    "rust-lang.rust-analyzer",
+    "serayuzgur.crates",
+    "streetsidesoftware.code-spell-checker",
+    "tyriar.sort-lines",
+    "zhwu95.riscv",
+  ]
+}
