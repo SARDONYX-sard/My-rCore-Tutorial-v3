@@ -3,7 +3,9 @@
     "../docker-compose.yml"
   ],
   "extensions": [
+    "eamodio.gitlens",
     "editorconfig.editorconfig",
+    "mhutchie.git-graph",
     "ms-vscode-remote.remote-containers",
     "pkief.material-icon-theme",
     "richie5um2.vscode-sort-json",
