@@ -8,18 +8,18 @@ define QEMU_OPTIONS
 	-device loader,file=target/riscv64gc-unknown-none-elf/release/os.bin,addr=0x80200000
 endef
 
-qemu:
+qemu: build
 	qemu-system-riscv64 $(QEMU_OPTIONS)
 
 # ---------------  debug  -----------------
 # -s: Listens for Qemu on local TCP port 1234 and waits for a connection from a GDB client
 # -S: Receives a request from GDB and then starts Qemu execution.
-gdb-server:
+gdb-server: build
 	@echo "Open another terminal, start the GDB client and connect to Qemu."
 	@echo "Please run: make gdb-client"
 	qemu-system-riscv64 $(QEMU_OPTIONS) -s -S
 
-gdb-client: release
+gdb-client:
 	# riscv64-unknown-elf-gdb \
 	gdb-multiarch \
 		-ex 'file target/riscv64gc-unknown-none-elf/release/os' \
