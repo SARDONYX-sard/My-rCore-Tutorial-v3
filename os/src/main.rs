@@ -8,6 +8,7 @@ global_asm!(include_str!("entry.asm"));
 
 #[no_mangle]
 fn rust_main() -> ! {
+    clear_bss();
     loop {}
 }
 
