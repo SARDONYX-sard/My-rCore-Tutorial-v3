@@ -1,6 +1,5 @@
-use core::arch::asm;
+#![allow(unused)] // #! Attribute macros can be used at the top of a file to apply to the entire file.
 
-#[allow(unused)]
 const SBI_SET_TIMER: usize = 0;
 const SBI_CONSOLE_PUTCHAR: usize = 1;
 const SBI_CONSOLE_GETCHAR: usize = 2;
@@ -11,6 +10,9 @@ const SBI_REMOTE_SFENCE_VMA: usize = 6;
 const SBI_REMOTE_SFENCE_VMA_ASID: usize = 7;
 const SBI_SHUTDOWN: usize = 8;
 
+use core::arch::asm;
+
+#[inline(always)]
 fn sbi_call(which: usize, arg0: usize, arg1: usize, arg2: usize) -> usize {
     let mut ret;
     unsafe {
