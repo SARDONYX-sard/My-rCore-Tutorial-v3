@@ -10,8 +10,15 @@
   "cSpell.words": [
     "dccache",
     "ebss",
+    "ecall",
+    "inlateout",
     "putchar",
     "riscv",
-    "sbss"
+    "riscv",
+    "sbss",
+    "sret",
+    "sstatus",
+    "syscall",
+    "xstate"
   ],
 }
