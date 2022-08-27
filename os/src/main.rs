@@ -6,6 +6,7 @@
 mod console;
 mod lang_items;
 mod sbi;
+mod sync;
 
 use core::arch::global_asm;
 global_asm!(include_str!("entry.asm"));
