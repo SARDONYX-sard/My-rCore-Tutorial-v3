@@ -11,14 +11,15 @@
     "dccache",
     "ebss",
     "ecall",
+    "icache",
     "inlateout",
     "putchar",
-    "riscv",
     "riscv",
     "sbss",
     "sret",
     "sstatus",
     "syscall",
+    "uniprocessor",
     "xstate"
   ],
 }
