@@ -21,10 +21,12 @@
     "scause",
     "sepc",
     "sret",
+    "sscratch",
     "sstatus",
     "stval",
     "stvec",
     "syscall",
+    "syscalls",
     "uniprocessor",
     "xstate"
   ],
