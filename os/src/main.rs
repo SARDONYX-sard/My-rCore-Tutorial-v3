@@ -20,6 +20,8 @@
 #![no_main]
 #![no_std]
 
+use core::arch::global_asm;
+
 #[cfg(feature = "board_qemu")]
 #[path = "boards/qemu.rs"]
 mod board;
@@ -33,8 +35,11 @@ mod sync;
 pub mod syscall;
 pub mod trap;
 
-use core::arch::global_asm;
 global_asm!(include_str!("entry.asm"));
+// The binary image file of the user's application
+// created by os/build.rs(the ELF format executable file minus the metadata. previous)
+// is linked to the kernel as a kernel data segment.
+global_asm!(include_str!("link_app.S")); //
 
 fn clear_bss() {
     extern "C" {
