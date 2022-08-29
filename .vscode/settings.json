@@ -29,6 +29,7 @@
     "syscall",
     "syscalls",
     "uniprocessor",
+    "userspace",
     "xstate"
   ],
 }
