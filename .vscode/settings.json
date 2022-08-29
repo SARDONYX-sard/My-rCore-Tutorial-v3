@@ -1,6 +1,7 @@
 {
   "files.associations": {
     "*.asm": "riscv",
+    "*.S": "riscv",
   },
   "files.autoSave": "afterDelay",
   "files.autoSaveDelay": 2000,
