@@ -4,8 +4,10 @@
   ],
   "extensions": [
     "alexclewontin.make-lsp-vscode",
+    "eamodio.gitlens",
     "editorconfig.editorconfig",
     "mateuszchudyk.hexinspector",
+    "mhutchie.git-graph",
     "ms-vscode-remote.remote-containers",
     "ms-vscode.hexeditor",
     "oderwat.indent-rainbow",
@@ -20,19 +22,5 @@
   ],
   "name": "os-tutorial",
   "service": "app",
-  "settings": {
-    "cSpell.words": [
-      "dccache",
-      "riscv"
-    ],
-    "files.associations": {
-      "*.asm": "riscv"
-    },
-    "files.autoSave": "afterDelay",
-    "files.autoSaveDelay": 2000,
-    "files.exclude": {
-      "**/.dccache": true
-    }
-  },
   "workspaceFolder": "/mnt"
 }
