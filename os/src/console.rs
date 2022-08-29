@@ -1,3 +1,5 @@
+//! SBI console driver, for text output
+
 use core::fmt::{self, Write};
 
 use crate::sbi::console_putchar;
