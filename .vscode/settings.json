@@ -8,11 +8,16 @@
   "files.exclude": {
     "**/.dccache": true,
   },
+  "rust-analyzer.cargo.features": [
+    "board_qemu"
+  ],
   "cSpell.words": [
     "__alltraps",
+    "ASID",
     "dccache",
     "ebss",
     "ecall",
+    "GETCHAR",
     "icache",
     "inlateout",
     "putchar",
@@ -21,6 +26,7 @@
     "sbss",
     "scause",
     "sepc",
+    "SFENCE",
     "sret",
     "sscratch",
     "sstatus",
