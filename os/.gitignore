@@ -1,1 +1,3 @@
 /target
+/last-qemu
+/src/link_app.S
