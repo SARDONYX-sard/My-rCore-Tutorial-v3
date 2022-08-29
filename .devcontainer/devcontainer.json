@@ -3,8 +3,8 @@
     "../docker-compose.yml"
   ],
   "extensions": [
-    "DavidAnson.vscode-markdownlint",
     "alexclewontin.make-lsp-vscode",
+    "davidanson.vscode-markdownlint",
     "eamodio.gitlens",
     "editorconfig.editorconfig",
     "mateuszchudyk.hexinspector",
