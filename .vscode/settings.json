@@ -21,6 +21,7 @@
     "ecall",
     "GETCHAR",
     "icache",
+    "incbin",
     "inlateout",
     "putchar",
     "repr",
