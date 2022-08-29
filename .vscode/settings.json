@@ -13,18 +13,6 @@
     "editor.scrollBeyondLastLine": false,
     "editor.wordSeparators": "./\\<)\"'>:,.;<>~!@# ○$%^&*|+=[]{}`~?．。，、（）「」［］｛｝《》てにをはがのともへでや"
   },
-  "files.associations": {
-    "*.asm": "riscv",
-    "*.S": "riscv",
-  },
-  "files.autoSave": "afterDelay",
-  "files.autoSaveDelay": 2000,
-  "files.exclude": {
-    "**/.dccache": true,
-  },
-  "rust-analyzer.cargo.features": [
-    "board_qemu"
-  ],
   "cSpell.words": [
     "__alltraps",
     "ASID",
@@ -52,6 +40,17 @@
     "userspace",
     "xstate"
   ],
+  "files.associations": {
+    "*.asm": "riscv",
+    "*.S": "riscv"
+  },
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 2000,
+  "files.exclude": {
+    "**/.dccache": true,
+    "**/.gdb_history": true,
+    "**/last-qemu": true
+  },
   "markdownlint.config": {
     "default": true,
     "MD024": false,
@@ -59,4 +58,7 @@
     "MD033": false,
     "no-hard-tabs": false
   },
+  "rust-analyzer.cargo.features": [
+    "board_qemu"
+  ]
 }
