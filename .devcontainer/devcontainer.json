@@ -3,33 +3,26 @@
     "../docker-compose.yml"
   ],
   "extensions": [
+    "alexclewontin.make-lsp-vscode",
+    "davidanson.vscode-markdownlint",
     "eamodio.gitlens",
     "editorconfig.editorconfig",
+    "mateuszchudyk.hexinspector",
     "mhutchie.git-graph",
     "ms-vscode-remote.remote-containers",
+    "ms-vscode.hexeditor",
+    "oderwat.indent-rainbow",
     "pkief.material-icon-theme",
     "richie5um2.vscode-sort-json",
     "rust-lang.rust-analyzer",
     "serayuzgur.crates",
     "streetsidesoftware.code-spell-checker",
+    "tamasfe.even-better-toml",
     "tyriar.sort-lines",
+    "yzhang.markdown-all-in-one",
     "zhwu95.riscv"
   ],
   "name": "os-tutorial",
   "service": "app",
-  "settings": {
-    "cSpell.words": [
-      "dccache",
-      "riscv"
-    ],
-    "files.associations": {
-      "*.asm": "riscv"
-    },
-    "files.autoSave": "afterDelay",
-    "files.autoSaveDelay": 2000,
-    "files.exclude": {
-      "**/.dccache": true
-    }
-  },
   "workspaceFolder": "/mnt"
 }

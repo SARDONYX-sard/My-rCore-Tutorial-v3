@@ -1,1 +1,4 @@
 /target
+/last-qemu
+/src/link_app.S
+.gdb_history

@@ -1,17 +1,62 @@
 {
+  "[markdown]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.markdownlint": true
+    },
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
+    "editor.padding.bottom": 250,
+    "editor.quickSuggestions": {
+      "comments": false,
+      "other": true,
+      "strings": false
+    },
+    "editor.scrollBeyondLastLine": false,
+    "editor.wordSeparators": "./\\<)\"'>:,.;<>~!@# ○$%^&*|+=[]{}`~?．。，、（）「」［］｛｝《》てにをはがのともへでや"
+  },
   "files.associations": {
     "*.asm": "riscv",
+    "*.S": "riscv",
   },
   "files.autoSave": "afterDelay",
   "files.autoSaveDelay": 2000,
   "files.exclude": {
     "**/.dccache": true,
   },
+  "rust-analyzer.cargo.features": [
+    "board_qemu"
+  ],
   "cSpell.words": [
+    "__alltraps",
+    "ASID",
     "dccache",
     "ebss",
+    "ecall",
+    "GETCHAR",
+    "icache",
+    "inlateout",
     "putchar",
+    "repr",
     "riscv",
-    "sbss"
+    "sbss",
+    "scause",
+    "sepc",
+    "SFENCE",
+    "sret",
+    "sscratch",
+    "sstatus",
+    "stval",
+    "stvec",
+    "syscall",
+    "syscalls",
+    "uniprocessor",
+    "userspace",
+    "xstate"
   ],
+  "markdownlint.config": {
+    "default": true,
+    "MD024": false,
+    "MD025": false,
+    "MD033": false,
+    "no-hard-tabs": false
+  },
 }
