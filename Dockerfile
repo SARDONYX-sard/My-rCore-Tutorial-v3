@@ -11,14 +11,21 @@ ARG HOME=/root
 
 # 0. Install general tools
 ARG DEBIAN_FRONTEND=noninteractive
+
+# python3=3.8.2-0ubuntu2: python3 3.8.10
+# xz-utils: The dependency of tar command
+# ca-certificates: curl command to use https
+# hadolint ignore=DL3008,DL3009
 RUN apt-get update && \
-    apt-get install -y \
-        curl \
-        git \
-        neovim \
-        python3 \
-        tree \
-        wget
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    git \
+    neovim \
+    python3=3.8.2-0ubuntu2 \
+    tmux \
+    tree \
+    xz-utils
 
 # 1. Set up QEMU RISC-V
 # - https://learningos.github.io/rust-based-os-comp2022/0setup-devel-env.html#qemu
@@ -28,21 +35,22 @@ RUN apt-get update && \
 
 # 1.1. Download source
 WORKDIR ${HOME}
-RUN wget https://download.qemu.org/qemu-${QEMU_VERSION}.tar.xz && \
+RUN curl -sSf -O "https://download.qemu.org/qemu-${QEMU_VERSION}.tar.xz" && \
     tar xvJf qemu-${QEMU_VERSION}.tar.xz
 
 # 1.2. Install dependencies
 # - https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html#prerequisites
-RUN apt-get install -y \
-        autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
-        gawk build-essential bison flex texinfo gperf libtool patchutils bc \
-        zlib1g-dev libexpat-dev git \
-        ninja-build pkg-config libglib2.0-dev libpixman-1-dev libsdl2-dev
+# hadolint ignore=DL3008
+RUN apt-get install -y --no-install-recommends \
+    autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
+    gawk build-essential bison flex texinfo gperf libtool patchutils bc \
+    zlib1g-dev libexpat-dev git \
+    ninja-build pkg-config libglib2.0-dev libpixman-1-dev libsdl2-dev
 
 # 1.3. Build and install from source
 WORKDIR ${HOME}/qemu-${QEMU_VERSION}
 RUN ./configure --target-list=riscv64-softmmu,riscv64-linux-user && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install
 
 # 1.4. Clean up
@@ -54,8 +62,21 @@ RUN qemu-system-riscv64 --version && \
     qemu-riscv64 --version
 
 # 1.6 Install debug tool
-RUN apt-get install -y \
-        gdb-multiarch
+RUN apt-get install -y --no-install-recommends \
+    gdb-multiarch=9.2-0ubuntu1~20.04.1
+
+# 1.7 Clean up  the cache of apt
+RUN apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# 1.7 Sanity checking
+# hadolint ignore=DL3059
+RUN gdb-multiarch --version
+
+# ignore hadolint For layer cache
+# hadolint ignore=DL3059
+RUN curl -sSfL https://git.io/.gdbinit \
+    -o ${HOME}/.gdbinit
 
 # 2. Set up Rust
 # - https://learningos.github.io/rust-based-os-comp2022/0setup-devel-env.html#qemu
