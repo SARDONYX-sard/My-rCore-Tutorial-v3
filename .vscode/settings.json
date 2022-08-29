@@ -1,4 +1,18 @@
 {
+  "[markdown]": {
+    "editor.codeActionsOnSave": {
+      "source.fixAll.markdownlint": true
+    },
+    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
+    "editor.padding.bottom": 250,
+    "editor.quickSuggestions": {
+      "comments": false,
+      "other": true,
+      "strings": false
+    },
+    "editor.scrollBeyondLastLine": false,
+    "editor.wordSeparators": "./\\<)\"'>:,.;<>~!@# ○$%^&*|+=[]{}`~?．。，、（）「」［］｛｝《》てにをはがのともへでや"
+  },
   "files.associations": {
     "*.asm": "riscv",
     "*.S": "riscv",
@@ -38,4 +52,11 @@
     "userspace",
     "xstate"
   ],
+  "markdownlint.config": {
+    "default": true,
+    "MD024": false,
+    "MD025": false,
+    "MD033": false,
+    "no-hard-tabs": false
+  },
 }
