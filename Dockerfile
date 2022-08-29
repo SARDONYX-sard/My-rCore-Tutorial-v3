@@ -13,19 +13,15 @@ ARG HOME=/root
 ARG DEBIAN_FRONTEND=noninteractive
 
 # python3=3.8.2-0ubuntu2: python3 3.8.10
-# xz-utils: The dependency of tar command
-# ca-certificates: curl command to use https
-# hadolint ignore=DL3008,DL3009
+# hadolint ignore=DL3008,DL3009,DL3015
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    ca-certificates \
+    apt-get install -y \
     curl \
     git \
     neovim \
     python3=3.8.2-0ubuntu2 \
     tmux \
-    tree \
-    xz-utils
+    tree
 
 # 1. Set up QEMU RISC-V
 # - https://learningos.github.io/rust-based-os-comp2022/0setup-devel-env.html#qemu
@@ -40,8 +36,8 @@ RUN curl -sSf -O "https://download.qemu.org/qemu-${QEMU_VERSION}.tar.xz" && \
 
 # 1.2. Install dependencies
 # - https://risc-v-getting-started-guide.readthedocs.io/en/latest/linux-qemu.html#prerequisites
-# hadolint ignore=DL3008
-RUN apt-get install -y --no-install-recommends \
+# hadolint ignore=DL3008,DL3015
+RUN apt-get install -y \
     autoconf automake autotools-dev curl libmpc-dev libmpfr-dev libgmp-dev \
     gawk build-essential bison flex texinfo gperf libtool patchutils bc \
     zlib1g-dev libexpat-dev git \
@@ -62,7 +58,8 @@ RUN qemu-system-riscv64 --version && \
     qemu-riscv64 --version
 
 # 1.6 Install debug tool
-RUN apt-get install -y --no-install-recommends \
+# hadolint ignore=DL3015
+RUN apt-get install -y \
     gdb-multiarch=9.2-0ubuntu1~20.04.1
 
 # 1.7 Clean up  the cache of apt
