@@ -23,12 +23,17 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: nightly
-      - name: Add Rustup target riscv64gc
-        run: rustup target add riscv64gc-unknown-none-elf
-      - name: Install `rust-src` Rustup Components
-        run: rustup component add rust-src
+          target: riscv64gc-unknown-none-elf
+          profile: minimal
+          components: rust-src
+      # os.bin cannot be started if it contains metadata
+      # Need objcopy to erase metadata
+      - name: Install cargo-binutils
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-binutils --vers ~0.2
       - name: Run `cargo check`
         run: make check
 
@@ -45,22 +50,26 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: nightly
-      - name: Add Rustup target riscv64gc
-        run: rustup target add riscv64gc-unknown-none-elf
-      - name: Install Rustup Components
-        run: rustup component add rust-src llvm-tools-preview
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+          target: riscv64gc-unknown-none-elf
+          profile: minimal
+          components: rust-src llvm-tools-preview
+      - name: Install cargo-binutils
+        uses: actions-rs/cargo@v1
         with:
-          platforms: riscv64
-      - name: "Sanity checking QEMU"
-        run: qemu-system-riscv64 --version && qemu-riscv64 --version
+          command: install
+          args: cargo-binutils --vers ~0.2
+      - name: Build test
+        run: cd ./os && make build
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v2
+      #   with:
+      #     platforms: riscv64
+      # - name: "Sanity checking QEMU"
+      #   run: qemu-system-riscv64 --version && qemu-riscv64 --version
 
-      - name: Run `qemu`(instead of Test now)
-        run: make run
+      # - name: Run `qemu`(instead of Test now)
+      #   run: make run
 
   check_formatting:
     name: Check Formatting
@@ -71,10 +80,9 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: nightly
+          profile: minimal
           components: rustfmt
-          override: true
       - name: Check formatting
         run: make fmt-check
 
@@ -87,11 +95,8 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          profile: minimal
           toolchain: nightly
+          profile: minimal
           components: clippy, rust-src
-          override: true
       - name: Run `cargo clippy`
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
+        run: make clippy
