@@ -87,11 +87,12 @@ debug: build
 		tmux split-window -h "$(gdb) $(GDB_CLIENT_OPTIONS)" && \
 		tmux -2 attach-session -d
 
-gdb-server: build
-	@echo "Open another terminal, start the GDB client and connect to Qemu."
-	@echo "Please run: make gdb-client"
+gdb-server:
+	@printf "\033[0;34mOpen another terminal, start the GDB client and connect to Qemu.\033[0;0m\n"
+	@echo "Please run:"
+	@echo "         make gdb-client"
 	@echo ""
-	@echo "quit shortcut key: <ctrl+a>+c,next press 'q' in qemu."
+	@printf "\033[0;33mquit shortcut key: <ctrl+a>+c, next press 'q' in qemu.\033[0;0m\n"
 	@$(QEMU) $(QEMU_OPTIONS) $(GDB_SERVER_OPTIONS)
 
 gdb-client:
