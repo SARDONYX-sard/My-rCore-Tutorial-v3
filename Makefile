@@ -32,9 +32,9 @@ check:
 
 clean:
 	@printf "$(BLUE_COLOR)Cleaning...$(RESET_COLOR)\n"
-	@$(foreach dir, $(DIRS), cd "$(dir)" && cargo clean; cd - >/dev/null;)
+	@$(foreach dir, $(DIRS), cd "$(dir)" && cargo clean && cd - >/dev/null;)
 	@$(DONE_MESSAGE)
 
 clippy:
-	$(foreach dir, $(DIRS), cd "$(dir)" && cargo clippy; cd - >/dev/null;)
+	$(foreach dir, $(DIRS), cd "$(dir)" && cargo clippy && cd - >/dev/null;)
 	@$(DONE_MESSAGE)
