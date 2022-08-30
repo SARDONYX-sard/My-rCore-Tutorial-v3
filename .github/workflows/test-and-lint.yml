@@ -81,6 +81,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
+          target: riscv64gc-unknown-none-elf
           profile: minimal
           components: rustfmt
       - name: Check formatting
@@ -96,6 +97,7 @@ jobs:
         uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
+          target: riscv64gc-unknown-none-elf
           profile: minimal
           components: clippy, rust-src
       - name: Run `cargo clippy`
