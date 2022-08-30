@@ -3,7 +3,7 @@
     "editor.codeActionsOnSave": {
       "source.fixAll.markdownlint": true
     },
-    "editor.defaultFormatter": "yzhang.markdown-all-in-one",
+    "editor.defaultFormatter": "DavidAnson.vscode-markdownlint",
     "editor.padding.bottom": 250,
     "editor.quickSuggestions": {
       "comments": false,
