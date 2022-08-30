@@ -9,7 +9,11 @@ build_docker:
 FORMAT_COMMAND :=	cargo fmt
 DIRS = $(sort $(dir $(wildcard ./*/Cargo.toml)))
 IS_SUCCESS_PREV_CMD := bash -c "[ \"$$?\" == $"0$" ]"
-DONE_MESSAGE := $(IS_SUCCESS_PREV_CMD) && printf "\033[0;32mDone.\033[0;0m\n"
+
+ANSI_ESC = \033[
+BLUE_COLOR = $(ANSI_ESC)34m
+RESET_COLOR = $(ANSI_ESC)0m
+DONE_MESSAGE := $(IS_SUCCESS_PREV_CMD) && printf "$(ANSI_ESC)32mDone.$(RESET_COLOR)\n"
 
 fmt:
 	@printf "\033[0;34mFormatting *.rs...\033[0;0m\n"
@@ -17,16 +21,16 @@ fmt:
 	@$(DONE_MESSAGE)
 
 fmt-check:
-	@printf "\033[0;34mcargo fmt --check *.rs...\033[0;0m\n"
+	@printf "$(BLUE_COLOR)cargo fmt --check *.rs...$(RESET_COLOR)\n"
 	@$(foreach dir, $(DIRS), cd "$(dir)" && $(FORMAT_COMMAND) --all -- --check; cd - >/dev/null;)
-	@printf "\033[0;32mDone.\033[0;0m\n"
+	@$(DONE_MESSAGE)
 
 check:
-	@printf "\033[0;34mcargo check *.rs...\033[0;0m\n"
+	@printf "$(BLUE_COLOR)cargo check *.rs...$(RESET_COLOR)\n"
 	@$(foreach dir, $(DIRS), cd "$(dir)" && cargo check && cd - >/dev/null;)
 	@$(DONE_MESSAGE)
 
 clean:
-	@printf "\033[0;34mCleaning...\033[0;0m\n"
+	@printf "$(BLUE_COLOR)Cleaning...$(RESET_COLOR)\n"
 	@$(foreach dir, $(DIRS), cd "$(dir)" && cargo clean; cd - >/dev/null;)
 	@$(DONE_MESSAGE)

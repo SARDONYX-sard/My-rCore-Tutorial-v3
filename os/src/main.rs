@@ -29,10 +29,13 @@ mod board;
 pub mod batch;
 #[macro_use]
 mod console;
+mod config;
 mod lang_items;
+mod loader;
 mod sbi;
 mod sync;
 pub mod syscall;
+mod task;
 pub mod trap;
 
 global_asm!(include_str!("entry.asm"));
