@@ -13,13 +13,16 @@
     sd x\n, \n*8(sp)
 .endm
 
-# align directive: align <number>
-#
-# #Examples
-#  .align 1 # 0x0 byte
-#  .align 2 # 0x4 byte
-#  .align 3 # 0x8 byte
-.align 2
+    .section .text
+    .globl __alltraps
+    .globl __restore
+    # align directive: align <number>
+    #
+    # #Examples
+    #  .align 1 # 0x0 byte
+    #  .align 2 # 0x4 byte
+    #  .align 3 # 0x8 byte
+    .align 2
 __alltraps:
     # sscratch: Value of sp before entering Trap, pointing to the user stack.
     #
