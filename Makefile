@@ -6,6 +6,8 @@ docker:
 build_docker:
 	docker-compose build
 
+FEATURE ?= board_qemu
+
 FORMAT_COMMAND :=	cargo fmt
 DIRS = $(sort $(dir $(wildcard ./*/Cargo.toml)))
 IS_SUCCESS_PREV_CMD := bash -c "[ \"$$?\" == $"0$" ]"
@@ -27,7 +29,7 @@ fmt-check:
 
 check:
 	@printf "$(BLUE_COLOR)cargo check *.rs...$(RESET_COLOR)\n"
-	@$(foreach dir, $(DIRS), cd "$(dir)" && cargo check && cd - >/dev/null;)
+	@$(foreach dir, $(DIRS), cd "$(dir)" && cargo check --features $(FEATURE) && cd - >/dev/null;)
 	@$(DONE_MESSAGE)
 
 clean:
@@ -36,5 +38,5 @@ clean:
 	@$(DONE_MESSAGE)
 
 clippy:
-	$(foreach dir, $(DIRS), cd "$(dir)" && cargo clippy && cd - >/dev/null;)
+	$(foreach dir, $(DIRS), cd "$(dir)" && cargo clippy --features $(FEATURE) && cd - >/dev/null;)
 	@$(DONE_MESSAGE)
