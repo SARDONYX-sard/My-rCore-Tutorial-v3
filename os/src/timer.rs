@@ -5,6 +5,8 @@ use crate::sbi::set_timer;
 use riscv::register::time;
 
 const TICKS_PER_SEC: usize = 100;
+/// Pre-set clock frequency (Hertz) for each platform,
+/// i.e., time interval for incrementing the counter in 1 second
 const MSEC_PER_SEC: usize = 1000;
 
 /// read the `mtime` register
