@@ -1,3 +1,7 @@
+//! Constants used in rCore for qemu
+
+pub const CLOCK_FREQ: usize = 12500000;
+
 //ref:: https://github.com/andre-richter/qemu-exit
 use core::arch::asm;
 

@@ -1,17 +1,18 @@
-#![allow(unused)] // #! Attribute macros can be used at the top of a file to apply to the entire file.
-
 const SBI_SET_TIMER: usize = 0;
 const SBI_CONSOLE_PUTCHAR: usize = 1;
-const SBI_CONSOLE_GETCHAR: usize = 2;
-const SBI_CLEAR_IPI: usize = 3;
-const SBI_SEND_IPI: usize = 4;
-const SBI_REMOTE_FENCE_I: usize = 5;
-const SBI_REMOTE_SFENCE_VMA: usize = 6;
-const SBI_REMOTE_SFENCE_VMA_ASID: usize = 7;
+// const SBI_CONSOLE_GETCHAR: usize = 2;
+// const SBI_CLEAR_IPI: usize = 3;
+// const SBI_SEND_IPI: usize = 4;
+// const SBI_REMOTE_FENCE_I: usize = 5;
+// const SBI_REMOTE_SFENCE_VMA: usize = 6;
+// const SBI_REMOTE_SFENCE_VMA_ASID: usize = 7;
+
+#[cfg(not(feature = "board_qemu"))]
 const SBI_SHUTDOWN: usize = 8;
 
 use core::arch::asm;
 
+///  handle SBI call with `which` SBI_id and other arguments
 #[inline(always)]
 fn sbi_call(which: usize, arg0: usize, arg1: usize, arg2: usize) -> usize {
     let mut ret;
@@ -27,6 +28,11 @@ fn sbi_call(which: usize, arg0: usize, arg1: usize, arg2: usize) -> usize {
     ret
 }
 
+/// use sbi call to set timer
+pub fn set_timer(timer: usize) {
+    sbi_call(SBI_SET_TIMER, timer, 0, 0);
+}
+
 /// Screen output to terminal
 pub fn console_putchar(c: usize) {
     sbi_call(SBI_CONSOLE_PUTCHAR, c, 0, 0);
@@ -36,10 +42,12 @@ pub fn console_putchar(c: usize) {
 use crate::board::QEMUExit;
 /// use sbi call to shutdown the kernel
 pub fn shutdown() -> ! {
+    #[cfg(not(feature = "board_qemu"))]
     sbi_call(SBI_SHUTDOWN, 0, 0, 0);
 
     #[cfg(feature = "board_qemu")]
     crate::board::QEMU_EXIT_HANDLE.exit_failure();
 
+    #[cfg(not(feature = "board_qemu"))]
     panic!("It should shutdown!");
 }

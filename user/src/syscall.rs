@@ -19,6 +19,8 @@ fn syscall(id: usize, args: [usize; 3]) -> isize {
 
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
+const SYSCALL_YIELD: usize = 124;
+const SYSCALL_GET_TIME: usize = 169;
 
 /// Write the data in the buffer in memory to the file.
 /// - syscall ID: 64
@@ -43,4 +45,17 @@ pub fn sys_write(fd: usize, buffer: &[u8]) -> isize {
 /// This system call should not return.
 pub fn sys_exit(xstate: i32) -> isize {
     syscall(SYSCALL_EXIT, [xstate as usize, 0, 0])
+}
+
+/// The application actively relinquishes ownership of the CPU and switches to another application.
+/// - Syscall ID: 124
+///
+/// # Return
+/// always returns 0.
+pub fn sys_yield() -> isize {
+    syscall(SYSCALL_YIELD, [0, 0, 0])
+}
+
+pub fn sys_get_time() -> isize {
+    syscall(SYSCALL_GET_TIME, [0, 0, 0])
 }

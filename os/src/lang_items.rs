@@ -1,6 +1,7 @@
-use core::panic::PanicInfo;
+//! The panic handler
 
 use crate::sbi::shutdown;
+use core::panic::PanicInfo;
 
 /// Prints to the standard output, with a newline
 /// and shutdown.

@@ -40,9 +40,9 @@ impl TrapContext {
         let mut cx = Self {
             x: [0; 32],
             sstatus,
-            sepc: entry,
+            sepc: entry, // entry point of app
         };
-        cx.set_sp(sp);
-        cx
+        cx.set_sp(sp); // app's user stack pointer
+        cx // return initial Trap Context of app
     }
 }

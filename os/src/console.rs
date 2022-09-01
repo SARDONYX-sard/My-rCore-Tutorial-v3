@@ -1,15 +1,14 @@
 //! SBI console driver, for text output
 
-use core::fmt::{self, Write};
-
 use crate::sbi::console_putchar;
+use core::fmt::{self, Write};
 
 struct Stdout;
 
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         for c in s.chars() {
-            console_putchar(c as usize)
+            console_putchar(c as usize);
         }
         Ok(())
     }

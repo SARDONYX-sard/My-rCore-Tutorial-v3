@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "*"
+    tags:
+      - "*"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Check
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: riscv64gc-unknown-none-elf
+          profile: minimal
+          components: rust-src
+      # os.bin cannot be started if it contains metadata
+      # Need objcopy to erase metadata
+      - name: Install cargo-binutils
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-binutils --vers ~0.2
+      - name: Run `cargo check`
+        run: make check
+
+  test:
+    name: Test
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ubuntu-latest]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: riscv64gc-unknown-none-elf
+          profile: minimal
+          components: rust-src, llvm-tools-preview
+      - name: Install cargo-binutils
+        uses: actions-rs/cargo@v1
+        with:
+          command: install
+          args: cargo-binutils --vers ~0.2
+      - name: Build test
+        run: cd ./os && make build
+      # - name: Set up QEMU
+      #   uses: docker/setup-qemu-action@v2
+      #   with:
+      #     platforms: riscv64
+      # - name: "Sanity checking QEMU"
+      #   run: qemu-system-riscv64 --version && qemu-riscv64 --version
+
+      # - name: Run `qemu`(instead of Test now)
+      #   run: make run
+
+  check_formatting:
+    name: Check Formatting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: riscv64gc-unknown-none-elf
+          profile: minimal
+          components: rustfmt
+      - name: Check formatting
+        run: make fmt-check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+      - name: Install Rust Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          target: riscv64gc-unknown-none-elf
+          profile: minimal
+          components: clippy, rust-src
+      - name: Run `cargo clippy`
+        run: make clippy
