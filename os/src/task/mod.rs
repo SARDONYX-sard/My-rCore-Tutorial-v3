@@ -11,6 +11,8 @@
 
 mod context;
 mod switch;
+
+#[allow(clippy::module_inception)]
 mod task;
 
 use crate::config::MAX_APP_NUM;
