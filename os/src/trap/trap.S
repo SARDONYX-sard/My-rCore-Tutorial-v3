@@ -78,7 +78,7 @@ __alltraps:
 __restore:
     # case1: start running app by __restore
     # case2: back to U after handling trap
-    mv sp, a0 # To execute App error
+    # mv sp, a0 # To execute App error
 
     # To properly recover the three temporary registers used,
     # the CSRs must be recovered first, followed by the general-purpose registers.
