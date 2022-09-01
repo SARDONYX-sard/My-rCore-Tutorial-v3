@@ -66,8 +66,14 @@ fn rust_main() -> ! {
     println!("[kernel] Hello, world!");
     trap::init();
     loader::load_apps();
+    // Set sie.stie(Supervisor Timer Interrupt Enable) field
+    // so that S privileged clock interrupts are not masked.
     trap::enable_timer_interrupt();
+    // Set the first 10 ms timer.
     timer::set_next_trigger();
+    // When the CPU receives an S-state clock interrupt in the U-state,
+    // it is preempted and then enters the Trap process,
+    // regardless of whether the sstatus.SIE bit is set or not.
     task::run_first_task();
     panic!("Unreachable in rust_main!");
 }
