@@ -11,6 +11,10 @@
 # and some registers are temporary registers that do not need to be saved and restored.
 
 .macro SAVE_SN n
+    # ```
+    # sd: rs2, offset(rs1)
+    #   Memory[rs1 + offset] = rs2
+    # ```
     sd s\n, (\n+2)*8(a0)
 .endm
 .macro LOAD_SN n
