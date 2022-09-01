@@ -10,19 +10,16 @@ OBJDUMP := rust-objdump --arch-name=riscv64
 OBJCOPY := rust-objcopy --binary-architecture=riscv64
 
 elf:
-	@cargo build --release
-	@echo $(APPS)
-	@echo $(ELFS)
-	@echo $(BINS)
+	@python3 build.py
 
 binary: elf
-	$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)
+	@$(foreach elf, $(ELFS), $(OBJCOPY) $(elf) --strip-all -O binary $(patsubst $(TARGET_DIR)/%, $(TARGET_DIR)/%.bin, $(elf));)
 
 build: binary
 
 EMU:=	qemu-riscv64
 test: build
-	$(foreach elf, $(ELFS), $(EMU) $(elf))
+	@$(foreach elf, $(ELFS), $(EMU) $(elf))
 
 # ---------------  debug  -----------------
 # -g <port_number>: Listens for Qemu on local TCP port <port_number>
@@ -30,11 +27,10 @@ test: build
 gdb-server: build
 	@echo "Open another terminal, start the GDB client and connect to Qemu."
 	@echo "Please run: make gdb-client"
-	$(EMU) -g 1234 target/riscv64gc-unknown-none-elf/release/00hello_world
+	@$(EMU) -g 1234 target/riscv64gc-unknown-none-elf/release/00hello_world
 
 gdb-client:
-	# riscv64-unknown-elf-gdb \
-	gdb-multiarch \
+	@gdb-multiarch \
 		-ex 'file target/riscv64gc-unknown-none-elf/release/00hello_world' \
 		-ex 'set arch riscv:rv64' \
 		-ex 'target remote localhost:1234'
