@@ -17,6 +17,7 @@
 #![deny(missing_docs)]
 #![deny(warnings)]
 #![feature(panic_info_message)]
+#![feature(alloc_error_handler)]
 #![no_main]
 #![no_std]
 
@@ -32,6 +33,7 @@ mod console;
 mod config;
 mod lang_items;
 mod loader;
+mod mm;
 mod sbi;
 mod sync;
 pub mod syscall;
@@ -71,9 +73,13 @@ fn rust_main() -> ! {
     trap::enable_timer_interrupt();
     // Set the first 10 ms timer.
     timer::set_next_trigger();
+
+    mm::init();
+
     // When the CPU receives an S-state clock interrupt in the U-state,
     // it is preempted and then enters the Trap process,
     // regardless of whether the sstatus.SIE bit is set or not.
     task::run_first_task();
+
     panic!("Unreachable in rust_main!");
 }
