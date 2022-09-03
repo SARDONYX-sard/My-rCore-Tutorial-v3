@@ -1,5 +1,6 @@
 //! ## A page table entry(64bit) in SV39 paging mode
 
+#![allow(unused)]
 use bitflags::*;
 
 use super::PhysPageNum;
