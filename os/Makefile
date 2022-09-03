@@ -56,6 +56,16 @@ disasm-vim: kernel
 	@nvim $(DISASM_TMP)
 	@rm $(DISASM_TMP)
 
+# https://github.com/rust-embedded/cargo-binutils#objdump
+objdump:
+	@cargo objdump $(MODE_ARG) --features "board_$(BOARD)" \
+		-- \
+		--disassemble \
+		--no-show-raw-insn \
+		> $(DISASM_TMP)
+	@nvim $(DISASM_TMP)
+	@rm $(DISASM_TMP)
+
 # -m <memory size>: Phisical memory size (default: 128MiB)
 # -machine <name>: Virtual machine pc name
 # -nographic: CLI mode

@@ -21,6 +21,10 @@
 #![no_main]
 #![no_std]
 
+#[allow(unused_imports)]
+#[macro_use]
+extern crate bitflags;
+
 use core::arch::global_asm;
 
 #[cfg(feature = "board_qemu")]
