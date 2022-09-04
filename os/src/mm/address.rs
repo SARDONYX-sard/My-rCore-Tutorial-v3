@@ -17,19 +17,69 @@ const VPN_WIDTH_SV39: usize = VA_WIDTH_SV39 - PAGE_SIZE_BITS;
 
 // Definitions
 
-/// physical address
+/// ## physical address(SV39: 56bit)
+///
+/// | BitNum  |55----------------12|11---------0|
+/// |---------|--------------------|------------|
+/// | Meaning | PhysicalPageNumber | PageOffset |
+/// |  Width  |         44         |     12     |
+///
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysAddr(pub usize);
 
-/// virtual address
+/// ## Virtual address(SV39: 39bit)
+///
+/// | BitNum  |38----------------12|11---------0|
+/// |---------|--------------------|------------|
+/// | Meaning | VirtualPageNumber  | PageOffset |
+/// |  Width  |         27         |     12     |
+///
+/// ## Virtual page number
+/// - SV39: 39(VirtAddr) - 12(offset) = 27bit
+///
+/// | Meaning | VPN2 | VPN1  | VPN0 |
+/// |---------|------|-------|------|
+/// |  Width  |   9  |   9   |   9  |
+///
+/// - VPN2: Index of the 3rd-level page table.
+///   - To find the physical page number of the 2nd-level page table
+///     in the physical page of the 3rd-level page table with VPN2 as the offset.
+///
+/// - VPN1: Index of the 2nd-level page table.
+///   - To find the physical page number of the 1st-level page table
+///     in the physical page of the 2nd-level page table with VPN1 as the offset.
+///
+/// - VPN0: Index of the 1st-level page table.
+///   - To find the physical page number of the accessed location
+///     in the physical page of the 1st-level page table, using VPN0 as the offset.
+///
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtAddr(pub usize);
 
-/// physical page number
+/// ## Physical page number
+/// - SV39: 56(PhisAddr) - 12(offset) = 44bit
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysPageNum(pub usize);
 
-/// virtual page number
+/// ## Virtual page number
+/// - SV39: 39(VirtAddr) - 12(offset) = 27bit
+///
+/// | Meaning | VPN2 | VPN1  | VPN0 |
+/// |---------|------|-------|------|
+/// |  Width  |   9  |   9   |   9  |
+///
+/// - VPN2: Index of the 3rd-level page table.
+///   - To find the physical page number of the 2nd-level page table
+///     in the physical page of the 3rd-level page table with VPN2 as the offset.
+///
+/// - VPN1: Index of the 2nd-level page table.
+///   - To find the physical page number of the 1st-level page table
+///     in the physical page of the 2nd-level page table with VPN1 as the offset.
+///
+/// - VPN0: Index of the 1st-level page table.
+///   - To find the physical page number of the accessed location
+///     in the physical page of the 1st-level page table, using VPN0 as the offset.
+///
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtPageNum(pub usize);
 
@@ -163,15 +213,22 @@ impl PhysAddr {
     }
 
     /// Increments by 1 for every PAGE_SIZE(4096)
-    /// # Example
+    /// # Examples
     ///
     /// - If `PAGE_SIZE` is 4096
     ///
     /// ```rust
-    /// let phis_address = PhisAddr::from(2); // PhisAddr(2)
-    /// // (2 - 1 + 4096) / 4096 = 1
+    /// // PhisAddr(8192)
+    /// let phis_address = PhisAddr::from(4096 * 2);
+    /// // (4096 * 2) − 1 + 4096) / 4096
     /// let phis_page_num = phis_address.ceil();
-    /// assert_eq!(phis_page_num.0, 1);
+    /// assert_eq!(phis_page_num.0, 2);
+    ///
+    /// // PhisAddr(8194)
+    /// let phis_address = PhisAddr::from(4097 * 2);
+    /// // (4097 * 2) − 1 + 4096) / 4096
+    /// let phis_page_num = phis_address.ceil();
+    /// assert_eq!(phis_page_num.0, 3);
     /// ```
     pub fn ceil(&self) -> PhysPageNum {
         PhysPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
