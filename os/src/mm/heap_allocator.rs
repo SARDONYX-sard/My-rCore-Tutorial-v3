@@ -25,8 +25,6 @@ pub fn init_heap() {
 
 #[allow(unused)]
 pub fn heap_test() {
-    extern crate alloc;
-
     use alloc::boxed::Box;
     use alloc::vec::Vec;
     extern "C" {

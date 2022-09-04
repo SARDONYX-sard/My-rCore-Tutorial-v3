@@ -1,5 +1,6 @@
 //! Implementation of physical and virtual address and page number.
 
+use super::PageTableEntry;
 use crate::config::{PAGE_SIZE, PAGE_SIZE_BITS};
 use core::fmt::{self, Debug, Formatter};
 
@@ -17,19 +18,69 @@ const VPN_WIDTH_SV39: usize = VA_WIDTH_SV39 - PAGE_SIZE_BITS;
 
 // Definitions
 
-/// physical address
+/// # Physical address(SV39: 56bit)
+///
+/// | BitNum  |55----------------12|11---------0|
+/// |---------|--------------------|------------|
+/// | Meaning | PhysicalPageNumber | PageOffset |
+/// |  Width  |         44         |     12     |
+///
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysAddr(pub usize);
 
-/// virtual address
+/// # Virtual address(SV39: 39bit)
+///
+/// | BitNum  |38----------------12|11---------0|
+/// |---------|--------------------|------------|
+/// | Meaning | VirtualPageNumber  | PageOffset |
+/// |  Width  |         27         |     12     |
+///
+/// # Virtual page number
+/// - SV39: 39(VirtAddr) - 12(offset) = 27bit
+///
+/// | Meaning | VPN2 | VPN1  | VPN0 |
+/// |---------|------|-------|------|
+/// |  Width  |   9  |   9   |   9  |
+///
+/// - VPN2: Index of the 3rd-level page table.
+///   - To find the physical page number of the 2nd-level page table
+///     in the physical page of the 3rd-level page table with VPN2 as the offset.
+///
+/// - VPN1: Index of the 2nd-level page table.
+///   - To find the physical page number of the 1st-level page table
+///     in the physical page of the 2nd-level page table with VPN1 as the offset.
+///
+/// - VPN0: Index of the 1st-level page table.
+///   - To find the physical page number of the accessed location
+///     in the physical page of the 1st-level page table, using VPN0 as the offset.
+///
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtAddr(pub usize);
 
-/// physical page number
+/// # Physical page number
+/// - SV39: 56(PhisAddr) - 12(offset) = 44bit
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysPageNum(pub usize);
 
-/// virtual page number
+/// # Virtual page number
+/// - SV39: 39(VirtAddr) - 12(offset) = 27bit
+///
+/// | Meaning | VPN2 | VPN1  | VPN0 |
+/// |---------|------|-------|------|
+/// |  Width  |   9  |   9   |   9  |
+///
+/// - VPN2: Index of the 3rd-level page table.
+///   - To find the physical page number of the 2nd-level page table
+///     in the physical page of the 3rd-level page table with VPN2 as the offset.
+///
+/// - VPN1: Index of the 2nd-level page table.
+///   - To find the physical page number of the 1st-level page table
+///     in the physical page of the 2nd-level page table with VPN1 as the offset.
+///
+/// - VPN0: Index of the 1st-level page table.
+///   - To find the physical page number of the accessed location
+///     in the physical page of the 1st-level page table, using VPN0 as the offset.
+///
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtPageNum(pub usize);
 
@@ -163,15 +214,22 @@ impl PhysAddr {
     }
 
     /// Increments by 1 for every PAGE_SIZE(4096)
-    /// # Example
+    /// # Examples
     ///
     /// - If `PAGE_SIZE` is 4096
     ///
     /// ```rust
-    /// let phis_address = PhisAddr::from(2); // PhisAddr(2)
-    /// // (2 - 1 + 4096) / 4096 = 1
+    /// // PhisAddr(8192)
+    /// let phis_address = PhisAddr::from(4096 * 2);
+    /// // (4096 * 2) − 1 + 4096) / 4096
     /// let phis_page_num = phis_address.ceil();
-    /// assert_eq!(phis_page_num.0, 1);
+    /// assert_eq!(phis_page_num.0, 2);
+    ///
+    /// // PhisAddr(8194)
+    /// let phis_address = PhisAddr::from(4097 * 2);
+    /// // (4097 * 2) − 1 + 4096) / 4096
+    /// let phis_page_num = phis_address.ceil();
+    /// assert_eq!(phis_page_num.0, 3);
     /// ```
     pub fn ceil(&self) -> PhysPageNum {
         PhysPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
@@ -197,5 +255,76 @@ impl From<PhysAddr> for PhysPageNum {
 impl From<PhysPageNum> for PhysAddr {
     fn from(v: PhysPageNum) -> Self {
         Self(v.0 << PAGE_SIZE_BITS)
+    }
+}
+
+impl VirtPageNum {
+    /// Divide the virtual page number into three parts per set of 9-bit data
+    /// that points to the index of the page table.
+    ///
+    /// This is to find the next page table in the page table.
+    pub fn indexes(&self) -> [usize; 3] {
+        let mut vpn = self.0;
+        let mut idx = [0usize; 3];
+        for i in (0..3).rev() {
+            idx[i] = vpn & 511;
+            vpn >>= 9;
+        }
+        idx
+    }
+}
+
+impl PhysPageNum {
+    /// Get a mutable reference to 1 page table.
+    ///
+    /// # Information
+    ///
+    /// - Clone & Cast `PhysPageNum` => `PhysAddr` => raw pointer<br/>
+    ///   and create a mutable reference slice with a length of 512 from the address of the raw pointer.
+    ///
+    /// ## Why 512?
+    ///
+    /// The 27-bit virtual page number represents one page table index for every 9 bits, and
+    ///
+    /// 1 << 9 = 512
+    ///
+    /// This means that only 512 pages can be stored in a page table,
+    /// and only one of those pages can be indexed.
+    ///
+    /// Therefore, the size of one page table is 64 bits,
+    /// since only 512 page table entries can be stored in one page table,
+    /// and the size of one page table entry in that directory is 64 bits.
+    ///
+    /// 8byte(64bit) * 512 = 4KiB
+    ///
+    /// which is exactly 1 page.
+    pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
+        let pa: PhysAddr = (*self).into();
+        unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512) }
+    }
+
+    /// Get a mutable reference slice with 1 page.
+    ///
+    /// This is 1 page of physical memory, not a page table.
+    ///
+    /// - 1 page: a length of 4096(4KiB) from the address of `PhisAddr`
+    ///
+    /// # Information
+    ///
+    /// - Clone & Cast `PhysPageNum` => `PhysAddr` => raw pointer<br/>
+    ///   and create a mutable reference slice with a length of 4096(4KiB) from the address of the raw pointer.
+    pub fn get_bytes_array(&self) -> &'static mut [u8] {
+        let pa: PhysAddr = (*self).into();
+        unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }
+    }
+
+    /// Get the mutable pointer of Physical Address.
+    ///
+    /// # Information
+    ///
+    /// - Clone & Cast `PhysPageNum` => `PhysAddr` => raw pointer<br/>
+    pub fn get_mut<T>(&self) -> &'static mut T {
+        let pa: PhysAddr = (*self).into();
+        unsafe { (pa.0 as *mut T).as_mut().unwrap() }
     }
 }
