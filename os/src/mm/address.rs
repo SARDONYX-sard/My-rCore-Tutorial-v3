@@ -18,7 +18,7 @@ const VPN_WIDTH_SV39: usize = VA_WIDTH_SV39 - PAGE_SIZE_BITS;
 
 // Definitions
 
-/// # physical address(SV39: 56bit)
+/// # Physical address(SV39: 56bit)
 ///
 /// | BitNum  |55----------------12|11---------0|
 /// |---------|--------------------|------------|
