@@ -46,7 +46,7 @@ bitflags! {
 ///
 /// The r/w/x flag if set to 0, meaning that the page entry points to the next page table.
 ///
-/// ## A page table entry(64bit) in SV39 paging mode
+/// # A page table entry(64bit) in SV39 paging mode
 ///
 /// | Bit number  |63------54|53------28|27------19|18------10|9---8| 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
 /// |-------------|----------|----------|----------|----------|-----|---|---|---|---|---|---|---|---|

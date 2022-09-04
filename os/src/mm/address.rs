@@ -17,7 +17,7 @@ const VPN_WIDTH_SV39: usize = VA_WIDTH_SV39 - PAGE_SIZE_BITS;
 
 // Definitions
 
-/// ## physical address(SV39: 56bit)
+/// # physical address(SV39: 56bit)
 ///
 /// | BitNum  |55----------------12|11---------0|
 /// |---------|--------------------|------------|
@@ -27,14 +27,14 @@ const VPN_WIDTH_SV39: usize = VA_WIDTH_SV39 - PAGE_SIZE_BITS;
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysAddr(pub usize);
 
-/// ## Virtual address(SV39: 39bit)
+/// # Virtual address(SV39: 39bit)
 ///
 /// | BitNum  |38----------------12|11---------0|
 /// |---------|--------------------|------------|
 /// | Meaning | VirtualPageNumber  | PageOffset |
 /// |  Width  |         27         |     12     |
 ///
-/// ## Virtual page number
+/// # Virtual page number
 /// - SV39: 39(VirtAddr) - 12(offset) = 27bit
 ///
 /// | Meaning | VPN2 | VPN1  | VPN0 |
@@ -56,12 +56,12 @@ pub struct PhysAddr(pub usize);
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtAddr(pub usize);
 
-/// ## Physical page number
+/// # Physical page number
 /// - SV39: 56(PhisAddr) - 12(offset) = 44bit
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct PhysPageNum(pub usize);
 
-/// ## Virtual page number
+/// # Virtual page number
 /// - SV39: 39(VirtAddr) - 12(offset) = 27bit
 ///
 /// | Meaning | VPN2 | VPN1  | VPN0 |
