@@ -6,6 +6,8 @@ pub const USER_STACK_SIZE: usize = 4096;
 pub const KERNEL_STACK_SIZE: usize = 4096 * 2;
 /// 0x300000byte == 3MiB
 pub const KERNEL_HEAP_SIZE: usize = 0x30_0000;
+/// 0x80800000 = 2.008GiB, 0x800000 = 8MiB
+pub const MEMORY_END: usize = 0x80800000;
 /// 4096byte == 4KiB
 pub const PAGE_SIZE: usize = 4096;
 /// Bit width of intra-page offset
