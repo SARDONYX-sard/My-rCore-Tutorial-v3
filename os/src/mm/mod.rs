@@ -7,10 +7,12 @@
 //! Every task or process has a memory_set to control its virtual memory.
 
 mod address;
+mod frame_allocator;
 mod heap_allocator;
 mod page_table;
 
 pub use address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
+pub use frame_allocator::{frame_alloc, FrameTracker};
 #[allow(unused)]
 use page_table::PTEFlags;
 pub use page_table::PageTableEntry;
