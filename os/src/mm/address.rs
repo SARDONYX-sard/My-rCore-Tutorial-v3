@@ -1,5 +1,6 @@
 //! Implementation of physical and virtual address and page number.
 
+use super::PageTableEntry;
 use crate::config::{PAGE_SIZE, PAGE_SIZE_BITS};
 use core::fmt::{self, Debug, Formatter};
 
@@ -254,5 +255,76 @@ impl From<PhysAddr> for PhysPageNum {
 impl From<PhysPageNum> for PhysAddr {
     fn from(v: PhysPageNum) -> Self {
         Self(v.0 << PAGE_SIZE_BITS)
+    }
+}
+
+impl VirtPageNum {
+    /// Divide the virtual page number into three parts per set of 9-bit data
+    /// that points to the index of the page table.
+    ///
+    /// This is to find the next page table in the page table.
+    pub fn indexes(&self) -> [usize; 3] {
+        let mut vpn = self.0;
+        let mut idx = [0usize; 3];
+        for i in (0..3).rev() {
+            idx[i] = vpn & 511;
+            vpn >>= 9;
+        }
+        idx
+    }
+}
+
+impl PhysPageNum {
+    /// Get a mutable reference to 1 page table.
+    ///
+    /// # Information
+    ///
+    /// - Clone & Cast `PhysPageNum` => `PhysAddr` => raw pointer<br/>
+    ///   and create a mutable reference slice with a length of 512 from the address of the raw pointer.
+    ///
+    /// ## Why 512?
+    ///
+    /// The 27-bit virtual page number represents one page table index for every 9 bits, and
+    ///
+    /// 1 << 9 = 512
+    ///
+    /// This means that only 512 pages can be stored in a page table,
+    /// and only one of those pages can be indexed.
+    ///
+    /// Therefore, the size of one page table is 64 bits,
+    /// since only 512 page table entries can be stored in one page table,
+    /// and the size of one page table entry in that directory is 64 bits.
+    ///
+    /// 8byte(64bit) * 512 = 4KiB
+    ///
+    /// which is exactly 1 page.
+    pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
+        let pa: PhysAddr = (*self).into();
+        unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512) }
+    }
+
+    /// Get a mutable reference slice with 1 page.
+    ///
+    /// This is 1 page of physical memory, not a page table.
+    ///
+    /// - 1 page: a length of 4096(4KiB) from the address of `PhisAddr`
+    ///
+    /// # Information
+    ///
+    /// - Clone & Cast `PhysPageNum` => `PhysAddr` => raw pointer<br/>
+    ///   and create a mutable reference slice with a length of 4096(4KiB) from the address of the raw pointer.
+    pub fn get_bytes_array(&self) -> &'static mut [u8] {
+        let pa: PhysAddr = (*self).into();
+        unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }
+    }
+
+    /// Get the mutable pointer of Physical Address.
+    ///
+    /// # Information
+    ///
+    /// - Clone & Cast `PhysPageNum` => `PhysAddr` => raw pointer<br/>
+    pub fn get_mut<T>(&self) -> &'static mut T {
+        let pa: PhysAddr = (*self).into();
+        unsafe { (pa.0 as *mut T).as_mut().unwrap() }
     }
 }
