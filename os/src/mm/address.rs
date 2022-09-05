@@ -209,6 +209,26 @@ impl From<VirtPageNum> for VirtAddr {
 }
 
 impl PhysAddr {
+    /// Truncate to a multiple of PAGE_SIZE.
+    /// - This comes in handy when asking for the starting address of a page.
+    ///
+    /// # Examples
+    ///
+    /// - If `PAGE_SIZE` is 4096
+    ///
+    /// ```rust
+    /// // PhisAddr(8192)
+    /// let phis_address = PhisAddr::from(4096 * 2);
+    /// // (4096 * 2) − 1 + 4096) / 4096
+    /// let phis_page_num = phis_address.floor();
+    /// assert_eq!(phis_page_num.0, 2);
+    ///
+    /// // PhisAddr(8194)
+    /// let phis_address = PhisAddr::from(4097 * 2);
+    /// // (4097 * 2) − 1 + 4096) / 4096
+    /// let phis_page_num = phis_address.ceil();
+    /// assert_eq!(phis_page_num.0, 2);
+    /// ```
     pub fn floor(&self) -> PhysPageNum {
         PhysPageNum(self.0 / PAGE_SIZE)
     }
@@ -232,10 +252,13 @@ impl PhysAddr {
     /// assert_eq!(phis_page_num.0, 3);
     /// ```
     pub fn ceil(&self) -> PhysPageNum {
+        //
         PhysPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
     }
 
+    /// Only the offset(12 bits) is taken from the physical address and returned.
     pub fn page_offset(&self) -> usize {
+        // PAGE_SIZE(4096KiB) - 1 = 0b1111_1111_1111(2**12 = 512) = There are 12 bits of 1.
         self.0 & (PAGE_SIZE - 1)
     }
 
