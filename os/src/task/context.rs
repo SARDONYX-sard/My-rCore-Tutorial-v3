@@ -25,6 +25,13 @@ impl TaskContext {
     /// set task context { __restore ASM function, kernel stack, s_0..12 }
     pub fn goto_restore(kstack_ptr: usize) -> Self {
         extern "C" {
+            /// Restore the following to transition from Supervisor mode to User mode
+            /// - General-purpose registers
+            /// - Control and status registers
+            /// - Stack pointer = user stack
+            /// - sscratch = kernel stack
+            ///
+            /// This function is defined in trap::trap.S
             fn __restore();
         }
         Self {
