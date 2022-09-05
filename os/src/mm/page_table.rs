@@ -209,6 +209,8 @@ impl PageTable {
     }
 
     #[allow(unused)]
+    /// Finds the page table entry from the virtual page number passed as an argument
+    /// and fills it with zero.
     pub fn unmap(&mut self, vpn: VirtPageNum) {
         let pte = self.find_pte(vpn).unwrap();
         assert!(pte.is_valid(), "vpn {:?} is invalid before unmapping", vpn);
