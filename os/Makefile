@@ -5,16 +5,16 @@ KERNEL_ELF := target/$(TARGET)/$(MODE)/os
 KERNEL_BIN := $(KERNEL_ELF).bin
 DISASM_TMP := target/$(TARGET)/$(MODE)/asm
 
-# Building mode argument
-ifeq ($(MODE), release)
-	MODE_ARG := --release
-endif
-
 # BOARD
 BOARD ?= qemu
 SBI ?= rustsbi
 BOOTLOADER := ../bootloader/$(SBI)-$(BOARD).bin
 QEMU := qemu-system-riscv64
+
+# Building mode argument
+ifeq ($(MODE), release)
+	MODE_ARG := --release
+endif
 
 # KERNEL ENTRY
 ifeq ($(BOARD), qemu)
@@ -53,6 +53,16 @@ disasm: kernel
 
 disasm-vim: kernel
 	@$(OBJDUMP) $(DISASM) $(KERNEL_ELF) > $(DISASM_TMP)
+	@nvim $(DISASM_TMP)
+	@rm $(DISASM_TMP)
+
+# https://github.com/rust-embedded/cargo-binutils#objdump
+objdump:
+	@cargo objdump $(MODE_ARG) --features "board_$(BOARD)" \
+		-- \
+		--disassemble \
+		--no-show-raw-insn \
+		> $(DISASM_TMP)
 	@nvim $(DISASM_TMP)
 	@rm $(DISASM_TMP)
 

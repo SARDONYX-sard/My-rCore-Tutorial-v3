@@ -17,8 +17,14 @@
 #![deny(missing_docs)]
 #![deny(warnings)]
 #![feature(panic_info_message)]
+#![feature(alloc_error_handler)]
 #![no_main]
 #![no_std]
+
+extern crate alloc;
+
+#[macro_use]
+extern crate bitflags;
 
 use core::arch::global_asm;
 
@@ -32,6 +38,7 @@ mod console;
 mod config;
 mod lang_items;
 mod loader;
+mod mm;
 mod sbi;
 mod sync;
 pub mod syscall;
@@ -64,16 +71,22 @@ fn clear_bss() {
 fn rust_main() -> ! {
     clear_bss();
     println!("[kernel] Hello, world!");
+    mm::init();
+    println!("[kernel] back to world!");
+    // mm::remap_test();
     trap::init();
-    loader::load_apps();
+
     // Set sie.stie(Supervisor Timer Interrupt Enable) field
     // so that S privileged clock interrupts are not masked.
     trap::enable_timer_interrupt();
+
     // Set the first 10 ms timer.
     timer::set_next_trigger();
+
     // When the CPU receives an S-state clock interrupt in the U-state,
     // it is preempted and then enters the Trap process,
     // regardless of whether the sstatus.SIE bit is set or not.
     task::run_first_task();
+
     panic!("Unreachable in rust_main!");
 }

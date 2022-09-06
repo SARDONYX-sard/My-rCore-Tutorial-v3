@@ -17,6 +17,10 @@ BLUE_COLOR = $(ANSI_ESC)34m
 RESET_COLOR = $(ANSI_ESC)0m
 DONE_MESSAGE := $(IS_SUCCESS_PREV_CMD) && printf "$(ANSI_ESC)32mDone.$(RESET_COLOR)\n"
 
+# Local pre-test to see if gitHub ci passes.
+ci: fmt-check check clippy
+	@cd os && make build && $(DONE_MESSAGE)
+
 fmt:
 	@printf "\033[0;34mFormatting *.rs...\033[0;0m\n"
 	@$(foreach dir, $(DIRS), cd "$(dir)" && $(FORMAT_COMMAND) && cd - >/dev/null;)

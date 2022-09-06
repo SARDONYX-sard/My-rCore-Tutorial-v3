@@ -2,4 +2,26 @@
 
 RISC-V OS written in Rust
 
-![sample](./docs/imgs/sample.jpg)
+- Architecture: RISC-V RV64
+
+## Feature
+
+- [x] Batch Processing System
+
+- [x] Cooperative Multitask
+
+- [x] Timesharing Multitask
+
+- [x] Page table
+
+- [] Process
+
+- [] File System
+
+- [] InterProcess Communication and I/O Redirection
+
+- [] Concurrency
+
+- [] I/O Device Management
+
+![sample](./docs/images/sample.jpg)

@@ -11,6 +11,10 @@ SECTIONS
     stext = .; /* stext(start text) is global symbol. */
     .text : {
         *(.text.entry)
+        . = ALIGN(4K);
+        strampoline = .; /* start trampoline */
+        *(.text.trampoline);
+        . = ALIGN(4K);
         *(.text .text.*)
     }
 
@@ -32,6 +36,7 @@ SECTIONS
 
     . = ALIGN(4K);
     edata = .;
+    sbss_with_stack = .;
     .bss : {
         *(.bss.stack)
         sbss = .;

@@ -1,5 +1,10 @@
 use core::arch::asm;
 
+const SYSCALL_WRITE: usize = 64;
+const SYSCALL_EXIT: usize = 93;
+const SYSCALL_YIELD: usize = 124;
+const SYSCALL_GET_TIME: usize = 169;
+
 #[inline(always)]
 fn syscall(id: usize, args: [usize; 3]) -> isize {
     let mut ret: isize;
@@ -16,11 +21,6 @@ fn syscall(id: usize, args: [usize; 3]) -> isize {
     }
     ret
 }
-
-const SYSCALL_WRITE: usize = 64;
-const SYSCALL_EXIT: usize = 93;
-const SYSCALL_YIELD: usize = 124;
-const SYSCALL_GET_TIME: usize = 169;
 
 /// Write the data in the buffer in memory to the file.
 /// - syscall ID: 64

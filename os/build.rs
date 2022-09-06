@@ -40,14 +40,17 @@ _num_app:
 
     for (idx, app) in apps.iter().enumerate() {
         println!("app_{}: {}", idx, app);
+        // need.align 3(8byte)
+        // Because mas-elf crate may read or write unaligned memory when parsing ELFs.
         writeln!(
             f,
             r#"
     .section .data
     .global app_{0}_start
     .global app_{0}_end
+    .align 3
 app_{0}_start:
-    .incbin "{2}{1}.bin"
+    .incbin "{2}{1}"
 app_{0}_end:"#,
             idx, app, TARGET_PATH
         )?;
