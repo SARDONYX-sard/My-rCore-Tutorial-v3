@@ -131,6 +131,9 @@ impl PageTableEntry {
 ///
 /// This PageTable struct is for grouping page tables by application.
 pub struct PageTable {
+    /// Physical page number
+    ///
+    /// SV39: 56(PhisAddr) - 12(offset) = 44bit
     root_ppn: PhysPageNum,
     /// The physical page frames of all nodes of the PageTable (including the root node)
     /// are held in the form of FrameTrackers.
@@ -187,6 +190,13 @@ impl PageTable {
         let mut result: Option<&mut PageTableEntry> = None;
         for (i, idx) in idxs.iter().enumerate() {
             // Get page table and use 9 bits(Max:512) of virtual page number as index.
+            // What you get at this point is the next `PageTableEntry`.
+            //
+            // That is, i is 0
+            // - When i is 0, it is the 2nd level page table.
+            // - when i is 1, it is the 1st level page table.
+            // - When it is 2, it is the actual physical address number
+            //   (combining this with the offset, the physical address is obtained).
             let pte = &mut ppn.get_pte_array()[*idx];
             // is level 1 table?
             if i == 2 {
@@ -272,17 +282,22 @@ impl PageTable {
         *pte = PageTableEntry::empty();
     }
 
-    /// Makes a copy of the page table entry and returns it if found, or None if not found.
+    /// `PageTableEntry` with the physical address number of the terminal node
+    /// from the argument vpn, or `None` if not found.
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.find_pte(vpn).map(|pte| *pte)
     }
 
-    /// Construct a 64-bit unsigned integer in satp CSR format with its paging mode as SV39
-    /// and padding with the physical page number of the root node in the current multilevel page table.
+    /// Get the physical page number of the root node of that application.
+    ///
+    /// Physical page number(SV39: 44bit)
     pub fn token(&self) -> usize {
         // 8 = 0b1000
-        // 0b1000 << 60 = 1 and 63-digit zero.
+        // 0b1000 << 60 = 1 and (3 + 60)-digit zero.
         // This is a total of 64 bits.
+        //
+        // The 64th digit is 1, but since it is the last 44 bits that are used,
+        // there is no need to be concerned.
         8usize << 60 | self.root_ppn.0
     }
 }
