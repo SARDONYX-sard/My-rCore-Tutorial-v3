@@ -5,16 +5,16 @@ KERNEL_ELF := target/$(TARGET)/$(MODE)/os
 KERNEL_BIN := $(KERNEL_ELF).bin
 DISASM_TMP := target/$(TARGET)/$(MODE)/asm
 
-# Building mode argument
-ifeq ($(MODE), release)
-	MODE_ARG := --release
-endif
-
 # BOARD
 BOARD ?= qemu
 SBI ?= rustsbi
 BOOTLOADER := ../bootloader/$(SBI)-$(BOARD).bin
 QEMU := qemu-system-riscv64
+
+# Building mode argument
+ifeq ($(MODE), release)
+	MODE_ARG := --release
+endif
 
 # KERNEL ENTRY
 ifeq ($(BOARD), qemu)
