@@ -1,14 +1,17 @@
 //! Implementation of [`MapArea`] and [`MemorySet`].
 
-use crate::config::{MEMORY_END, PAGE_SIZE, USER_STACK_SIZE};
-use crate::mm::address::StepByOne;
-
-use super::address::VPNRange;
-use super::page_table::PTEFlags;
-use super::{frame_alloc, PhysPageNum, VirtAddr};
-use super::{page_table::PageTable, FrameTracker, VirtPageNum};
+use super::{frame_alloc, FrameTracker};
+use super::{PTEFlags, PageTable, PageTableEntry};
+use super::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
+use super::{StepByOne, VPNRange};
+use crate::config::{MEMORY_END, MMIO, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
+use crate::sync::UPSafeCell;
 use alloc::collections::BTreeMap;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
+use core::arch::asm;
+use lazy_static::*;
+use riscv::register::satp;
 
 extern "C" {
     /// start text segment
@@ -31,6 +34,15 @@ extern "C" {
     fn ekernel();
     /// start trampoline
     fn strampoline();
+}
+
+lazy_static! {
+    /// a memory set instance through lazy_static! managing kernel space
+    ///
+    /// KERNEL_SPACE is not actually initialized until it is first used at runtime,
+    /// and the space it occupies is placed in the global data segment at compile time.
+    pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
+        Arc::new(unsafe { UPSafeCell::new(MemorySet::new_kernel()) });
 }
 
 /// Expressing the address space.
@@ -58,12 +70,10 @@ impl MemorySet {
         }
     }
 
-    fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
-        map_area.map(&mut self.page_table);
-        if let Some(data) = data {
-            map_area.copy_data(&mut self.page_table, data);
-        }
-        self.areas.push(map_area);
+    /// Construct a u64-bit in satp CSR format with its paging mode
+    /// as SV39 and padding with the physical page number of the root node in the current multilevel page table.
+    pub fn token(&self) -> usize {
+        self.page_table.token()
     }
 
     /// Assume that no conflicts.
@@ -83,9 +93,21 @@ impl MemorySet {
         );
     }
 
+    fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
+        map_area.map(&mut self.page_table);
+        if let Some(data) = data {
+            map_area.copy_data(&mut self.page_table, data);
+        }
+        self.areas.push(map_area);
+    }
+
     /// Mention that trampoline is not collected by areas.
     fn map_trampoline(&mut self) {
-        todo!()
+        self.page_table.map(
+            VirtAddr::from(TRAMPOLINE).into(),
+            PhysAddr::from(strampoline as usize).into(),
+            PTEFlags::R | PTEFlags::X,
+        );
     }
 
     /// Generate kernel address space without kernel stacks.
@@ -151,6 +173,18 @@ impl MemorySet {
             ),
             None,
         );
+        println!("mapping memory-mapped registers");
+        for pair in MMIO {
+            memory_set.push(
+                MapArea::new(
+                    (*pair).0.into(),
+                    ((*pair).0 + (*pair).1).into(),
+                    MapType::Identical,
+                    MapPermission::R | MapPermission::W,
+                ),
+                None,
+            );
+        }
         memory_set
     }
 
@@ -229,6 +263,37 @@ impl MemorySet {
             user_stack_top,
             elf.header.pt2.entry_point() as usize,
         )
+    }
+
+    /// The physical page number of the app's root table is written to the satp CSR of the current CPU,
+    /// and from this point on, the SV39 paging mode is enabled
+    /// and the MMU uses the multilevel page table in the kernel address space for address translation.
+    pub fn activate(&self) {
+        let satp = self.page_table.token();
+        unsafe {
+            // From this point on, the SV39 paging mode is enabled and the MMU uses the multi-level page table
+            // in the kernel address space for address translation.
+            satp::write(satp);
+
+            // Virtual Address mode ON.
+
+            // - fast table: Translation Lookaside Buffer(TLB)
+            //
+            // When satp is changed,the address space is switched
+            // and the key-value pairs in the fast table become invalid
+            // (since the fast table holds mappings from the old address space and the old mappings
+            // are no longer available when switching to the new address space).
+            //
+            // To synchronize the MMU's address translation with the change in satp,
+            // the sfence.vma instruction must be used to immediately empty the fast table so
+            // that the MMU does not reference expired key-value pairs in the fast table.
+            asm!("sfence.vma");
+        }
+    }
+
+    /// Makes a copy of the page table entry and returns it if found, or None if not found.
+    pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+        self.page_table.translate(vpn)
     }
 }
 
@@ -312,6 +377,7 @@ impl MapArea {
         }
     }
 
+    #[allow(dead_code)]
     /// Remove mappings of the current logical segment to physical memory
     /// from the multilevel page table in the address space
     ///  to which the incoming logical segment belongs.
@@ -365,6 +431,23 @@ impl MapArea {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+/// map type for memory set: identical or framed
+pub enum MapType {
+    /// A type that maps the same address as a virtual address to a physical address.
+    ///
+    /// VirtPageNum == PhysPageNum
+    Identical,
+    /// The actual allocation of memory and other resources for the application.
+    ///
+    /// The terminal node that does not point to the page table to the next.
+    ///
+    /// It represents the fact that for each virtual page,
+    /// a new corresponding physical page frame is allocated,
+    /// and the mapping between virtual and physical addresses is relatively random.
+    Framed,
+}
+
 bitflags! {
     /// A subset of the page table entry flags PTEFlags, leaving only the U/R/W/X flags.
     ///
@@ -390,19 +473,26 @@ bitflags! {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-/// map type for memory set: identical or framed
-pub enum MapType {
-    /// A type that maps the same address as a virtual address to a physical address.
-    ///
-    /// VirtPageNum == PhysPageNum
-    Identical,
-    /// The actual allocation of memory and other resources for the application.
-    ///
-    /// The terminal node that does not point to the page table to the next.
-    ///
-    /// It represents the fact that for each virtual page,
-    /// a new corresponding physical page frame is allocated,
-    /// and the mapping between virtual and physical addresses is relatively random.
-    Framed,
+#[allow(unused)]
+pub fn remap_test() {
+    let mut kernel_space = KERNEL_SPACE.exclusive_access();
+    let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
+    let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
+    let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_text.floor())
+        .unwrap()
+        .writable());
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_rodata.floor())
+        .unwrap()
+        .writable());
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_data.floor())
+        .unwrap()
+        .executable());
+    println!("remap_test passed!");
 }
