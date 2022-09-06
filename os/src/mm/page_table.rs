@@ -1,10 +1,9 @@
 //! ## A page table entry(64bit) in SV39 paging mode
 
+use super::{frame_alloc, FrameTracker, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
 use alloc::vec;
 use alloc::vec::Vec;
 use bitflags::*;
-
-use super::{frame_alloc, FrameTracker, PhysPageNum, VirtPageNum};
 
 bitflags! {
     pub struct PTEFlags: u8 {
@@ -100,12 +99,22 @@ impl PageTableEntry {
     pub fn flags(&self) -> PTEFlags {
         PTEFlags::from_bits(self.bits as u8).unwrap()
     }
-}
 
-impl PageTableEntry {
     /// true if `V` flag is 1, false if it is 0.
     pub fn is_valid(&self) -> bool {
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
+    }
+
+    pub fn readable(&self) -> bool {
+        (self.flags() & PTEFlags::R) != PTEFlags::empty()
+    }
+
+    pub fn writable(&self) -> bool {
+        (self.flags() & PTEFlags::W) != PTEFlags::empty()
+    }
+
+    pub fn executable(&self) -> bool {
+        (self.flags() & PTEFlags::X) != PTEFlags::empty()
     }
 }
 
@@ -144,6 +153,20 @@ impl PageTable {
 
     /// Get the next page table.
     /// If not found, create a new page table and return `None`.
+    /// Temporarily used to get arguments from user space.
+    ///
+    /// Create a temporary PageTable dedicated to manually checking the page table.
+    /// It has only the physical page number of the root node of the multilevel page table obtained
+    /// from the received satp token and has an empty frame field.
+    ///
+    /// In other words, it does not actually control any resource.
+    pub fn from_token(satp: usize) -> Self {
+        Self {
+            root_ppn: PhysPageNum::from(satp & ((1usize << 44) - 1)),
+            frames: Vec::new(),
+        }
+    }
+
     fn find_pte_create(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
@@ -217,24 +240,52 @@ impl PageTable {
         *pte = PageTableEntry::empty();
     }
 
-    #[allow(unused)]
-    /// Temporarily used to get arguments from user space.
-    ///
-    /// Create a temporary PageTable dedicated to manually checking the page table.
-    /// It has only the physical page number of the root node of the multilevel page table obtained
-    /// from the received satp token and has an empty frame field.
-    ///
-    /// In other words, it does not actually control any resource.
-    pub fn from_token(satp: usize) -> Self {
-        Self {
-            root_ppn: PhysPageNum::from(satp & ((1usize << 44) - 1)),
-            frames: Vec::new(),
-        }
-    }
-
-    #[allow(unused)]
     /// Makes a copy of the page table entry and returns it if found, or None if not found.
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.find_pte(vpn).map(|pte| *pte)
     }
+
+    /// Construct a 64-bit unsigned integer in satp CSR format with its paging mode as SV39
+    /// and padding with the physical page number of the root node in the current multilevel page table.
+    pub fn token(&self) -> usize {
+        // 8 = 0b1000
+        // 0b1000 << 60 = 1 and 63-digit zero.
+        // This is a total of 64 bits.
+        8usize << 60 | self.root_ppn.0
+    }
+}
+
+/// Returns a set of byte slices directly accessible in kernel space in the form of vectors.
+///
+/// translate a pointer to a mutable u8 Vec through page table
+///
+/// # Note
+///
+/// The kernel virtual address range for this buffer may not be contiguous.
+///
+/// # Parameters
+/// - Token: Token in application address space.
+/// - ptr: Starting address of the buffer in its application address space, respectively.
+/// - len: The length of the buffer in that application address space, respectively.
+///        (note: The application virtual address range for this buffer is continuous).
+pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&'static mut [u8]> {
+    let page_table = PageTable::from_token(token);
+    let mut start = ptr as usize;
+    let end = start + len;
+    let mut v = Vec::new();
+    while start < end {
+        let start_va = VirtAddr::from(start);
+        let mut vpn = start_va.floor();
+        let ppn = page_table.translate(vpn).unwrap().ppn();
+        vpn.step();
+        let mut end_va: VirtAddr = vpn.into();
+        end_va = end_va.min(VirtAddr::from(end));
+        if end_va.page_offset() == 0 {
+            v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..]);
+        } else {
+            v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..end_va.page_offset()]);
+        }
+        start = end_va.into();
+    }
+    v
 }
