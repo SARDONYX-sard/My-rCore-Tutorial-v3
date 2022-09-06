@@ -190,6 +190,9 @@ impl PageTable {
             let pte = &mut ppn.get_pte_array()[*idx];
             // is level 1 table?
             if i == 2 {
+                // Physical page number stored in 1st level page,
+                // which refers to `PageTableEntry`
+                // to the physical address that is the terminal node.
                 result = Some(pte);
                 break;
             }
@@ -238,7 +241,6 @@ impl PageTable {
         result
     }
 
-    #[allow(unused)]
     /// Combining the physical number and access flags creates a page table entry.
     ///
     /// Mapping to that table using the virtual page number as a key
