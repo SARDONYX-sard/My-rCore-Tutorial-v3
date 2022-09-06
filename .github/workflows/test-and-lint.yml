@@ -23,17 +23,18 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2022-08-28
           target: riscv64gc-unknown-none-elf
           profile: minimal
           components: rust-src
       # os.bin cannot be started if it contains metadata
       # Need objcopy to erase metadata
       - name: Install cargo-binutils
-        uses: actions-rs/cargo@v1
+        uses: actions-rs/install@v0.1
         with:
-          command: install
-          args: cargo-binutils --vers ~0.2
+          crate: cargo-binutils
+          version: latest
+          use-tool-cache: true
       - name: Run `cargo check`
         run: make check
 
@@ -50,29 +51,44 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2022-08-28
           target: riscv64gc-unknown-none-elf
           profile: minimal
           components: rust-src, llvm-tools-preview
+
       - name: Install cargo-binutils
-        uses: actions-rs/cargo@v1
+        uses: actions-rs/install@v0.1
         with:
-          command: install
-          args: cargo-binutils --vers ~0.2
+          crate: cargo-binutils
+          version: latest
+          use-tool-cache: true
+
+      - name: Cache QEMU
+        uses: actions/cache@v3
+        with:
+          path: qemu-7.0.0
+          key: qemu-7.0.0-x86_64-riscv64
+      - name: Install QEMU
+        run: |
+          sudo apt-get update
+          sudo apt-get install ninja-build -y
+          if [ ! -d qemu-7.0.0 ]; then
+            wget https://download.qemu.org/qemu-7.0.0.tar.xz
+            tar -xf qemu-7.0.0.tar.xz
+            cd qemu-7.0.0
+            ./configure --target-list=riscv64-softmmu
+            make -j
+          else
+            cd qemu-7.0.0
+          fi
+          sudo make install
+          qemu-system-riscv64 --version
       - name: Build test
-        run: cd ./os && make build
-      # - name: Set up QEMU
-      #   uses: docker/setup-qemu-action@v2
-      #   with:
-      #     platforms: riscv64
-      # - name: "Sanity checking QEMU"
-      #   run: qemu-system-riscv64 --version && qemu-riscv64 --version
+        run: cd ./os && make run
+        timeout-minutes: 10
 
-      # - name: Run `qemu`(instead of Test now)
-      #   run: make run
-
-  check_formatting:
-    name: Check Formatting
+  formatting:
+    name: Formatting
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -80,7 +96,7 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2022-08-28
           target: riscv64gc-unknown-none-elf
           profile: minimal
           components: rustfmt
@@ -96,7 +112,7 @@ jobs:
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly
+          toolchain: nightly-2022-08-28
           target: riscv64gc-unknown-none-elf
           profile: minimal
           components: clippy, rust-src
