@@ -126,6 +126,10 @@ impl PageTableEntry {
 ///
 /// Therefore, the PageTable keeps the `root_ppn`, which is the physical page number of its root node,
 /// as a marker to uniquely distinguish the page table.
+///
+/// # What is different from PageTableEntry?
+///
+/// This PageTable struct is for grouping page tables by application.
 pub struct PageTable {
     root_ppn: PhysPageNum,
     /// The physical page frames of all nodes of the PageTable (including the root node)
@@ -142,7 +146,6 @@ pub struct PageTable {
 }
 
 impl PageTable {
-    #[allow(unused)]
     pub fn new() -> Self {
         let frame = frame_alloc().unwrap();
         PageTable {
@@ -151,15 +154,8 @@ impl PageTable {
         }
     }
 
-    /// Get the next page table.
-    /// If not found, create a new page table and return `None`.
-    /// Temporarily used to get arguments from user space.
-    ///
-    /// Create a temporary PageTable dedicated to manually checking the page table.
-    /// It has only the physical page number of the root node of the multilevel page table obtained
-    /// from the received satp token and has an empty frame field.
-    ///
-    /// In other words, it does not actually control any resource.
+    /// Create a new PageTable with the value of the argument satp
+    /// (Supervisor Address Translation and Protection) register as root_node.
     pub fn from_token(satp: usize) -> Self {
         Self {
             root_ppn: PhysPageNum::from(satp & ((1usize << 44) - 1)),
@@ -167,6 +163,24 @@ impl PageTable {
         }
     }
 
+    /// Finds and returns the `PageTableEntry` associated with the vpn.
+    ///
+    /// If the searched `PageTableEntry` is the terminal node, the value is returned.
+    /// Otherwise, return `None`.
+    ///
+    /// - If the Valid flag of the found `PageTableEntry` is 0,
+    /// it is overwritten by a new `PageTableEntry` with the Valid flag set to 1.<br/>
+    /// Then add to frames(vector in node tracking for each app).
+    ///
+    /// # Details
+    ///
+    /// The vpn (VirtualPageNumber): 27bit(SV39) given as an argument
+    /// => divide \[VPN0\](9bit), VPN\[1\](9bit), VPN\[2\](9bit)\]
+    ///
+    /// And each part is used as an index to search the PageTable of each layer.
+    /// - VPN\[0\]: The index of 3rd level page table.
+    /// - VPN\[1\]: The index of 2nd level page table.
+    /// - VPN\[2\]: The index of 1st level page table.
     fn find_pte_create(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
@@ -174,7 +188,7 @@ impl PageTable {
         for (i, idx) in idxs.iter().enumerate() {
             // Get page table and use 9 bits(Max:512) of virtual page number as index.
             let pte = &mut ppn.get_pte_array()[*idx];
-            // is level 2 table?
+            // is level 1 table?
             if i == 2 {
                 result = Some(pte);
                 break;
@@ -189,7 +203,23 @@ impl PageTable {
         result
     }
 
-    /// Get the next page table.
+    /// Finds and returns the `PageTableEntry` associated with the vpn.
+    ///
+    /// If the searched `PageTableEntry` is the terminal node, the value is returned.
+    /// Otherwise, return `None`.
+    ///
+    /// - If the Valid flag of the found `PageTableEntry` is 0,
+    ///   return `None`.
+    ///
+    /// # Details
+    ///
+    /// The vpn (VirtualPageNumber): 27bit(SV39) given as an argument
+    /// => divide \[VPN0\](9bit), VPN\[1\](9bit), VPN\[2\](9bit)\]
+    ///
+    /// And each part is used as an index to search the PageTable of each layer.
+    /// - VPN\[0\]: The index of 3rd level page table.
+    /// - VPN\[1\]: The index of 2nd level page table.
+    /// - VPN\[2\]: The index of 1st level page table.
     fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
