@@ -83,7 +83,7 @@ jobs:
           fi
           sudo make install
           qemu-system-riscv64 --version
-      - name: Build test
+      - name: Run test
         run: cd ./os && make run
         timeout-minutes: 10
 
