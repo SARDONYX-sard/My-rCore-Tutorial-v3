@@ -56,6 +56,21 @@ pub struct StackFrameAllocator {
     recycled: Vec<usize>,
 }
 
+impl StackFrameAllocator {
+    /// Assign each field value of the StackFrameAllocator structure.
+    /// - self.current = l.0;
+    /// - self.end = r.0;
+    ///
+    /// # Parameters
+    ///
+    /// - l: left hand of Physical Page Number
+    /// - r: right hand of Physical Page Number
+    pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
+        self.current = l.0;
+        self.end = r.0;
+    }
+}
+
 impl FrameAllocator for StackFrameAllocator {
     fn new() -> Self {
         Self {
@@ -116,21 +131,6 @@ impl FrameAllocator for StackFrameAllocator {
         }
         // recycle
         self.recycled.push(ppn);
-    }
-}
-
-impl StackFrameAllocator {
-    /// Assign each field value of the StackFrameAllocator structure.
-    /// - self.current = l.0;
-    /// - self.end = r.0;
-    ///
-    /// # Parameters
-    ///
-    /// - l: left hand of Physical Page Number
-    /// - r: right hand of Physical Page Number
-    pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
-        self.current = l.0;
-        self.end = r.0;
     }
 }
 
