@@ -23,6 +23,13 @@ pub struct TrapContext {
     pub sstatus: Sstatus,
     /// - sepc: [Supervisor Exception Program Counter](https://five-embeddev.com/riscv-isa-manual/latest/supervisor.html#supervisor-exception-program-counter-sepc)
     pub sepc: usize,
+
+    /// Addr of Page Table
+    pub kernel_satp: usize,
+    /// kernel stack
+    pub kernel_sp: usize,
+    /// Addr of trap_handler function
+    pub trap_handler: usize,
 }
 
 impl TrapContext {
@@ -32,15 +39,24 @@ impl TrapContext {
     }
 
     /// init app context
-    pub fn app_init_context(entry: usize, sp: usize) -> Self {
+    pub fn app_init_context(
+        entry: usize,
+        sp: usize,
+        kernel_satp: usize,
+        kernel_sp: usize,
+        trap_handler: usize,
+    ) -> Self {
         unsafe {
             set_spp(SPP::User); //previous privilege mode: user mode
         }
-        let sstatus = sstatus::read();
+        let sstatus = sstatus::read(); // CSR sstatus
         let mut cx = Self {
             x: [0; 32],
             sstatus,
-            sepc: entry, // entry point of app
+            sepc: entry,  // entry point of app
+            kernel_satp,  // addr of page table
+            kernel_sp,    // kernel stack
+            trap_handler, // addr of trap_handler function
         };
         cx.set_sp(sp); // app's user stack pointer
         cx // return initial Trap Context of app
