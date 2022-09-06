@@ -14,14 +14,14 @@ RISC-V OS written in Rust
 
 - [x] Page table
 
-- [] Process
+- [ ] Process
 
-- [] File System
+- [ ] File System
 
-- [] InterProcess Communication and I/O Redirection
+- [ ] InterProcess Communication and I/O Redirection
 
-- [] Concurrency
+- [ ] Concurrency
 
-- [] I/O Device Management
+- [ ] I/O Device Management
 
 ![sample](./docs/images/sample.jpg)
