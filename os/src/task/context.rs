@@ -1,7 +1,7 @@
 //! Implementation of [`TaskContext`]
+use crate::trap::trap_return;
 
 /// Task Context
-#[derive(Copy, Clone)]
 #[repr(C)]
 pub struct TaskContext {
     /// return address ( e.g. __restore ) of __switch ASM function
@@ -22,20 +22,10 @@ impl TaskContext {
         }
     }
 
-    /// set task context { __restore ASM function, kernel stack, s_0..12 }
-    pub fn goto_restore(kstack_ptr: usize) -> Self {
-        extern "C" {
-            /// Restore the following to transition from Supervisor mode to User mode
-            /// - General-purpose registers
-            /// - Control and status registers
-            /// - Stack pointer = user stack
-            /// - sscratch = kernel stack
-            ///
-            /// This function is defined in trap::trap.S
-            fn __restore();
-        }
+    /// set Task Context{__restore ASM function: trap_return, sp: kstack_ptr, s: s_0..12}
+    pub fn goto_trap_return(kstack_ptr: usize) -> Self {
         Self {
-            ra: __restore as usize,
+            ra: trap_return as usize,
             sp: kstack_ptr,
             s: [0; 12],
         }
