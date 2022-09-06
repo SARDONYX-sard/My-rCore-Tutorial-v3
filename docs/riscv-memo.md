@@ -33,3 +33,11 @@ For sign extension, the bits are filled with the same value as the sign bit so t
 In the specific example of handling an 8-bit byte value as a 16-bit word value, sign extension of 8 bits of -2 (111111111110 in 2's complement representation) results in 16 bits of -2 (1111111111111110). Note that since there are cases where it is not convenient to perform sign expansion, processors often have instructions to perform sign expansion and instructions to simply fill in the value with zeros without performing it.
 
 See more: [RV32I Base Integer Instruction Set, Version 2.1](https://five-embeddev.com/riscv-isa-manual/latest/rv32.html#integer-computational-instructions)
+
+## sfence.vma is a Barrier
+
+For a RISC-V CPU implementation with a fast table, we can think of sfence.vma as clearing the fast table.
+In fact it is defined in the privileged level specification as a much richer memory barrier,
+specifically: sfence.vma enables all address translations that occur after it to see all write operations that precede it.
+The specific transactions to be done by this instruction vary on different hardware configurations.
+This instruction can also be finely configured to reduce synchronization overhead, as described in the RISC-V privileged level specification.
