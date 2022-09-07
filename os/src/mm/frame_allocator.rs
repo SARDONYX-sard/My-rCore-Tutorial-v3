@@ -140,7 +140,6 @@ lazy_static! {
         unsafe { UPSafeCell::new(FrameAllocatorImpl::new()) };
 }
 
-#[allow(unused)]
 /// initiate the frame allocator using `ekernel` and `MEMORY_END`
 pub fn init_frame_allocator() {
     extern "C" {
