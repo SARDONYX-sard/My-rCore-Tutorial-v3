@@ -311,7 +311,7 @@ impl PageTable {
 /// The kernel virtual address range for this buffer may not be contiguous.
 ///
 /// # Parameters
-/// - Token: Token in application address space.
+/// - Token: Token in application address space.(the root node of `PhysPageNum`)
 /// - ptr: Starting address of the buffer in its application address space, respectively.
 /// - len: The length of the buffer in that application address space, respectively.
 ///        (note: The application virtual address range for this buffer is continuous).
