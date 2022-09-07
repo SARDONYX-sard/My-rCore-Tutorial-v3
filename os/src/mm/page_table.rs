@@ -302,9 +302,12 @@ impl PageTable {
     }
 }
 
-/// Returns a set of byte slices directly accessible in kernel space in the form of vectors.
+/// Temporarily create a `PageTable` with token as root_node
+/// and `ptr` as VirtualPageNum as the key.
 ///
-/// translate a pointer to a mutable u8 Vec through page table
+/// Iterate through the `PhysicalPageNum` of the terminal node associated
+/// with this key until `len` fits in each page array, store it in an Vector,
+/// and return it.
 ///
 /// # Note
 ///
@@ -320,12 +323,15 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     let mut start = ptr as usize;
     let end = start + len;
     let mut v = Vec::new();
+    // Write values to memory in page units.
     while start < end {
         let start_va = VirtAddr::from(start);
         let mut vpn = start_va.floor();
         let ppn = page_table.translate(vpn).unwrap().ppn();
         vpn.step();
         let mut end_va: VirtAddr = vpn.into();
+        // min((start + 1), (start + len))
+        // Returns (start+1) if both are equal.
         end_va = end_va.min(VirtAddr::from(end));
         if end_va.page_offset() == 0 {
             v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..]);
