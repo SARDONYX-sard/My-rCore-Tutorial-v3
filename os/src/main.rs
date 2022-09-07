@@ -11,7 +11,7 @@
 //! initialize various pieces of functionality. (See its source code for
 //! details.)
 //!
-//! We then call [`batch::run_next_app()`] and for the first time go to
+//! We then call [`task::run_first_task()`] and for the first time go to
 //! userspace.
 
 #![deny(missing_docs)]
