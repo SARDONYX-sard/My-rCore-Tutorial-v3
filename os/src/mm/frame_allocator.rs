@@ -155,7 +155,11 @@ pub fn init_frame_allocator() {
     );
 }
 
-/// allocate a frame
+/// allocate a frame.
+///
+/// Change the physical address(range: `ekernel` symbol ~ `MEMORY_END`) => `PhysPageNum`
+///
+/// and wrap it in a `FrameTracker` to automatically call `frame_dealloc` when it is no longer used.
 pub fn frame_alloc() -> Option<FrameTracker> {
     FRAME_ALLOCATOR
         .exclusive_access()
@@ -164,6 +168,9 @@ pub fn frame_alloc() -> Option<FrameTracker> {
 }
 
 /// deallocate a frame
+///
+/// There is no need to use this function manually
+/// since it is called automatically by `Drop` trait implemented in `FrameTracker`.
 fn frame_dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }
