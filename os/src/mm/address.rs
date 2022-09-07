@@ -239,6 +239,8 @@ impl VirtAddr {
     }
 
     /// Only the offset(12 bits) is taken from the virtual address and returned.
+    ///
+    /// - Offset is the index within one page (PAGE_SIZE default: 4096).
     pub fn page_offset(&self) -> usize {
         // PAGE_SIZE(4096KiB) - 1 = 0b1111_1111_1111(2**12 = 512) = There are 12 bits of 1.
         self.0 & (PAGE_SIZE - 1)
@@ -323,6 +325,8 @@ impl PhysAddr {
     }
 
     /// Only the offset(12 bits) is taken from the physical address and returned.
+    ///
+    /// - Offset is the index within one page (PAGE_SIZE default: 4096).
     pub fn page_offset(&self) -> usize {
         // PAGE_SIZE(4096KiB) - 1 = 0b1111_1111_1111(2**12 = 512) = There are 12 bits of 1.
         self.0 & (PAGE_SIZE - 1)
