@@ -183,7 +183,7 @@ impl VirtAddr {
     /// Virtual Address / PAGE_SIZE (4096) => Virtual Page Number.
     /// round-down division.
     ///
-    /// # Why?
+    /// # Why 4096?
     /// 4096 = 2**12
     ///
     /// Virtual Address >> Offset(12bit) => Virtual Page Number.
@@ -212,7 +212,7 @@ impl VirtAddr {
     /// Virtual Address / PAGE_SIZE (4096) => Virtual Page Number.
     /// round-up division.
     ///
-    /// # Why?
+    /// # Why 4096?
     /// 4096 = 2**12
     ///
     /// Virtual Address >> Offset(12bit) => Virtual Page Number.
