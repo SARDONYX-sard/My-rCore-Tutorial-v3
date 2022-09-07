@@ -9,6 +9,8 @@ use core::fmt::{self, Debug, Formatter};
 use lazy_static::*;
 
 /// manage a frame which has the same lifecycle as the tracker
+///
+/// Track ppn and drop(frame_dealloc) the target Page when it is no longer needed.
 pub struct FrameTracker {
     pub ppn: PhysPageNum,
 }
@@ -48,9 +50,9 @@ trait FrameAllocator {
 
 /// physical page number interval \[ current , end \] has never been allocated
 pub struct StackFrameAllocator {
-    /// Number of start physical pages of free memory
+    /// First address of `PhysPageNum` which is not allocated.
     current: usize,
-    /// Number of free memory for end physical page
+    /// End address of `PhysPageNum` which is not allocated.
     end: usize,
     /// Holds the physical page numbers recycled on a last-in, first-out basis.
     recycled: Vec<usize>,
@@ -98,14 +100,17 @@ impl FrameAllocator for StackFrameAllocator {
         } else if self.current == self.end {
             None
         } else {
-            // This mean allocated current memory.
+            // The next unassigned physical page number is pointed
+            // to by incrementing it as it is assigned.
             self.current += 1;
             // change usize to PhisPageNum by use into()
             Some((self.current - 1).into())
         }
     }
 
-    /// # Note
+    /// Push the ppn(PhysicalPageNumber) passed as argument to the `self.recycled` field.
+    ///
+    /// # Panic
     ///
     /// When recycling dealloc, the legitimacy of the recycled page must be verified
     /// before it can be held in the recycled stack.
@@ -113,19 +118,12 @@ impl FrameAllocator for StackFrameAllocator {
     /// There are two conditions for a recycled page to be legitimate:
     ///
     /// - The page must have been previously assigned,<br/>
-    ///   i.e., its `physical page number` < `current`.
-    /// - The page is not in the recycle state,<br/>
-    ///   i.e., its `physical page number` is not found on the recycle stack.
-    ///
-    /// # Panic
-    ///
-    /// If a PhysPageNum that has already been released is specified,
-    /// it will be released twice, resulting in panic.
+    ///   If ppn(PhysicalPageNumber) passed as an argument >= (self.current)the beginning of the unallocated address.
+    /// -  If it is a double free,<br/>
+    ///   i.e., its ppn(PhysicalPageNumber) passed as an argument is found on the `self.recycled` field.
     fn dealloc(&mut self, ppn: PhysPageNum) {
         let ppn = ppn.0;
         // validity check
-        // - Is the value greater than or equal to the current physical page number?
-        // - Have you released memory before?
         if ppn >= self.current || self.recycled.iter().any(|&v| v == ppn) {
             panic!("Frame ppn={:#x} has not been allocated!", ppn);
         }
@@ -142,11 +140,10 @@ lazy_static! {
         unsafe { UPSafeCell::new(FrameAllocatorImpl::new()) };
 }
 
-#[allow(unused)]
 /// initiate the frame allocator using `ekernel` and `MEMORY_END`
 pub fn init_frame_allocator() {
     extern "C" {
-        /// Function, but symbols by `// TODO: defined by file here.`
+        /// The symbol is defined in `linker.ld`.
         /// - ekernel: end kernel memory segment
         fn ekernel();
     }
@@ -158,7 +155,11 @@ pub fn init_frame_allocator() {
     );
 }
 
-/// allocate a frame
+/// allocate a frame.
+///
+/// Change the physical address(range: `ekernel` symbol ~ `MEMORY_END`) => `PhysPageNum`
+///
+/// and wrap it in a `FrameTracker` to automatically call `frame_dealloc` when it is no longer used.
 pub fn frame_alloc() -> Option<FrameTracker> {
     FRAME_ALLOCATOR
         .exclusive_access()
@@ -167,6 +168,9 @@ pub fn frame_alloc() -> Option<FrameTracker> {
 }
 
 /// deallocate a frame
+///
+/// There is no need to use this function manually
+/// since it is called automatically by `Drop` trait implemented in `FrameTracker`.
 fn frame_dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }

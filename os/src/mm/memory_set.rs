@@ -55,7 +55,7 @@ lazy_static! {
 /// is restricted to within the associated virtual address space.
 /// This is why there are terms such as address space for task, address space for kernel, etc.
 pub struct MemorySet {
-    /// Maintain physical page frames for all nodes in the multi-level page table.
+    /// `PageTable` that manages the root_node of the app for one and all the nodes in use by the app.
     page_table: PageTable,
     /// Virtual areas for each program.
     areas: Vec<MapArea>,
@@ -70,8 +70,9 @@ impl MemorySet {
         }
     }
 
-    /// Construct a u64-bit in satp CSR format with its paging mode
-    /// as SV39 and padding with the physical page number of the root node in the current multilevel page table.
+    /// Get the physical page number of the root node of that application.
+    ///
+    /// Physical page number(SV39: 44bit)
     pub fn token(&self) -> usize {
         self.page_table.token()
     }
@@ -93,6 +94,9 @@ impl MemorySet {
         );
     }
 
+    /// Allocate memory for the range of `self.vpn_range` in `self.page_table`,
+    ///
+    /// and if data is passed as an argument, write to the allocated memory.
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
@@ -211,7 +215,7 @@ impl MemorySet {
             if ph.get_type().unwrap() == xmas_elf::program::Type::Load {
                 let start_va: VirtAddr = (ph.virtual_addr() as usize).into();
                 // ph.mem_size: Memory size required for the application.
-                //? The size for the number of zeros in the bss area is also calculated?
+                // `mem_size` is also calculated for bss size, but not `file_size`.
                 let end_va: VirtAddr = ((ph.virtual_addr() + ph.mem_size()) as usize).into();
                 let mut map_perm = MapPermission::U;
                 let ph_flags = ph.flags();
@@ -391,12 +395,13 @@ impl MapArea {
         }
     }
 
-    /// The data in the slice data is copied to a physical page frame
-    /// where the kernel actually places the logical segment,
-    /// allowing access to the data via that logical segment in the address space.
+    /// 1. Convert the 1st argument `PageTable` to a physical address at start of vpn_range.
+    ///
+    /// 2. Write the data passed to the 2nd argument in the order of the length of the data,
+    ///    starting with the converted physical address as the start address.
     ///
     /// data: start-aligned but maybe with shorter length
-    /// assume that all frames were cleared before
+    ///       assume that all frames were cleared before
     pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
         assert_eq!(self.map_type, MapType::Framed);
         let mut start: usize = 0;
@@ -410,10 +415,10 @@ impl MapArea {
             //
             // start = 4096
             // start + PAGE_SIZE(4096) = 8192
-            // for example // start = 4096
+            //
             // 4096..8192 = 0 ~ 4096 = 1 page
             let src = &data[start..len.min(start + PAGE_SIZE)];
-            // Change the PageTable passed in the argument
+            // Obtain a physical memory area for the amount of data that will fit on 1 page.
             let dst = &mut page_table
                 // to a physical page number with a virtual page number.
                 .translate(current_vpn)

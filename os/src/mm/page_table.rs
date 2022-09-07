@@ -126,7 +126,14 @@ impl PageTableEntry {
 ///
 /// Therefore, the PageTable keeps the `root_ppn`, which is the physical page number of its root node,
 /// as a marker to uniquely distinguish the page table.
+///
+/// # What is different from PageTableEntry?
+///
+/// This PageTable struct is for grouping page tables by application.
 pub struct PageTable {
+    /// Physical page number
+    ///
+    /// SV39: 56(PhisAddr) - 12(offset) = 44bit
     root_ppn: PhysPageNum,
     /// The physical page frames of all nodes of the PageTable (including the root node)
     /// are held in the form of FrameTrackers.
@@ -142,7 +149,6 @@ pub struct PageTable {
 }
 
 impl PageTable {
-    #[allow(unused)]
     pub fn new() -> Self {
         let frame = frame_alloc().unwrap();
         PageTable {
@@ -151,15 +157,8 @@ impl PageTable {
         }
     }
 
-    /// Get the next page table.
-    /// If not found, create a new page table and return `None`.
-    /// Temporarily used to get arguments from user space.
-    ///
-    /// Create a temporary PageTable dedicated to manually checking the page table.
-    /// It has only the physical page number of the root node of the multilevel page table obtained
-    /// from the received satp token and has an empty frame field.
-    ///
-    /// In other words, it does not actually control any resource.
+    /// Create a new PageTable with the value of the argument satp
+    /// (Supervisor Address Translation and Protection) register as root_node.
     pub fn from_token(satp: usize) -> Self {
         Self {
             root_ppn: PhysPageNum::from(satp & ((1usize << 44) - 1)),
@@ -167,15 +166,43 @@ impl PageTable {
         }
     }
 
+    /// Finds and returns the `PageTableEntry` associated with the vpn.
+    ///
+    /// If the searched `PageTableEntry` is the terminal node, the value is returned.
+    /// Otherwise, return `None`.
+    ///
+    /// - If the Valid flag of the found `PageTableEntry` is 0,
+    /// it is overwritten by a new `PageTableEntry` with the Valid flag set to 1.<br/>
+    /// Then add to frames(vector in node tracking for each app).
+    ///
+    /// # Details
+    ///
+    /// The vpn (VirtualPageNumber): 27bit(SV39) given as an argument
+    /// => divide \[VPN0\](9bit), VPN\[1\](9bit), VPN\[2\](9bit)\]
+    ///
+    /// And each part is used as an index to search the PageTable of each layer.
+    /// - VPN\[0\]: The index of 3rd level page table.
+    /// - VPN\[1\]: The index of 2nd level page table.
+    /// - VPN\[2\]: The index of 1st level page table.
     fn find_pte_create(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
         let mut result: Option<&mut PageTableEntry> = None;
         for (i, idx) in idxs.iter().enumerate() {
             // Get page table and use 9 bits(Max:512) of virtual page number as index.
+            // What you get at this point is the next `PageTableEntry`.
+            //
+            // That is, i is 0
+            // - When i is 0, it is the 2nd level page table.
+            // - when i is 1, it is the 1st level page table.
+            // - When it is 2, it is the actual physical address number
+            //   (combining this with the offset, the physical address is obtained).
             let pte = &mut ppn.get_pte_array()[*idx];
-            // is level 2 table?
+            // is level 1 table?
             if i == 2 {
+                // Physical page number stored in 1st level page,
+                // which refers to `PageTableEntry`
+                // to the physical address that is the terminal node.
                 result = Some(pte);
                 break;
             }
@@ -189,7 +216,23 @@ impl PageTable {
         result
     }
 
-    /// Get the next page table.
+    /// Finds and returns the `PageTableEntry` associated with the vpn.
+    ///
+    /// If the searched `PageTableEntry` is the terminal node, the value is returned.
+    /// Otherwise, return `None`.
+    ///
+    /// - If the Valid flag of the found `PageTableEntry` is 0,
+    ///   return `None`.
+    ///
+    /// # Details
+    ///
+    /// The vpn (VirtualPageNumber): 27bit(SV39) given as an argument
+    /// => divide \[VPN0\](9bit), VPN\[1\](9bit), VPN\[2\](9bit)\]
+    ///
+    /// And each part is used as an index to search the PageTable of each layer.
+    /// - VPN\[0\]: The index of 3rd level page table.
+    /// - VPN\[1\]: The index of 2nd level page table.
+    /// - VPN\[2\]: The index of 1st level page table.
     fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
@@ -208,7 +251,6 @@ impl PageTable {
         result
     }
 
-    #[allow(unused)]
     /// Combining the physical number and access flags creates a page table entry.
     ///
     /// Mapping to that table using the virtual page number as a key
@@ -240,31 +282,39 @@ impl PageTable {
         *pte = PageTableEntry::empty();
     }
 
-    /// Makes a copy of the page table entry and returns it if found, or None if not found.
+    /// `PageTableEntry` with the physical address number of the terminal node
+    /// from the argument vpn, or `None` if not found.
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.find_pte(vpn).map(|pte| *pte)
     }
 
-    /// Construct a 64-bit unsigned integer in satp CSR format with its paging mode as SV39
-    /// and padding with the physical page number of the root node in the current multilevel page table.
+    /// Get the physical page number of the root node of that application.
+    ///
+    /// Physical page number(SV39: 44bit)
     pub fn token(&self) -> usize {
         // 8 = 0b1000
-        // 0b1000 << 60 = 1 and 63-digit zero.
+        // 0b1000 << 60 = 1 and (3 + 60)-digit zero.
         // This is a total of 64 bits.
+        //
+        // The 64th digit is 1, but since it is the last 44 bits that are used,
+        // there is no need to be concerned.
         8usize << 60 | self.root_ppn.0
     }
 }
 
-/// Returns a set of byte slices directly accessible in kernel space in the form of vectors.
+/// Temporarily create a `PageTable` with token as root_node
+/// and `ptr` as VirtualPageNum as the key.
 ///
-/// translate a pointer to a mutable u8 Vec through page table
+/// Iterate through the `PhysicalPageNum` of the terminal node associated
+/// with this key until `len` fits in each page array, store it in an Vector,
+/// and return it.
 ///
 /// # Note
 ///
 /// The kernel virtual address range for this buffer may not be contiguous.
 ///
 /// # Parameters
-/// - Token: Token in application address space.
+/// - Token: Token in application address space.(the root node of `PhysPageNum`)
 /// - ptr: Starting address of the buffer in its application address space, respectively.
 /// - len: The length of the buffer in that application address space, respectively.
 ///        (note: The application virtual address range for this buffer is continuous).
@@ -273,12 +323,15 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
     let mut start = ptr as usize;
     let end = start + len;
     let mut v = Vec::new();
+    // Write values to memory in page units.
     while start < end {
         let start_va = VirtAddr::from(start);
         let mut vpn = start_va.floor();
         let ppn = page_table.translate(vpn).unwrap().ppn();
         vpn.step();
         let mut end_va: VirtAddr = vpn.into();
+        // min((start + 1), (start + len))
+        // Returns (start+1) if both are equal.
         end_va = end_va.min(VirtAddr::from(end));
         if end_va.page_offset() == 0 {
             v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..]);

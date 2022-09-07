@@ -180,15 +180,73 @@ impl From<VirtPageNum> for usize {
 }
 
 impl VirtAddr {
+    /// Virtual Address / PAGE_SIZE (4096) => Virtual Page Number.
+    /// round-down division.
+    ///
+    /// # Why 4096?
+    /// 4096 = 2**12
+    ///
+    /// Virtual Address >> Offset(12bit) => Virtual Page Number.
+    ///
+    /// # Examples
+    ///
+    /// - If `PAGE_SIZE` is 4096
+    ///
+    /// ```rust
+    /// // VirtAddr(8192)
+    /// let virt_address = VirtAddr::from(4096 * 2);
+    /// // (4096 * 2) / 4096
+    /// let virt_page_num = virt_address.floor();
+    /// assert_eq!(virt_page_num.0, 2);
+    ///
+    /// // VirtAddr(8194)
+    /// let virt_address = VirtAddr::from(4097 * 2);
+    /// // (4097 * 2) / 4096
+    /// let virt_page_num = virt_address.floor();
+    /// assert_eq!(virt_page_num.0, 2);
+    /// ```
     pub fn floor(&self) -> VirtPageNum {
         VirtPageNum(self.0 / PAGE_SIZE)
     }
+
+    /// Virtual Address / PAGE_SIZE (4096) => Virtual Page Number.
+    /// round-up division.
+    ///
+    /// # Why 4096?
+    /// 4096 = 2**12
+    ///
+    /// Virtual Address >> Offset(12bit) => Virtual Page Number.
+    ///
+    /// # Examples
+    ///
+    /// - If `PAGE_SIZE` is 4096
+    ///
+    /// ```rust
+    /// // VirtAddr(8192)
+    /// let virt_address = VirtAddr::from(4096 * 2);
+    /// // ((4096 * 2) − 1 + 4096) / 4096
+    /// let virt_page_num = virt_address.ceil();
+    /// assert_eq!(virt_page_num.0, 2);
+    ///
+    /// // VirtAddr(8194)
+    /// let virt_address = VirtAddr::from(4097 * 2);
+    /// // ((4097 * 2) − 1 + 4096) / 4096
+    /// let virt_page_num = virt_address.ceil();
+    /// assert_eq!(virt_page_num.0, 3);
+    /// ```
     pub fn ceil(&self) -> VirtPageNum {
         VirtPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
     }
+
+    /// Only the offset(12 bits) is taken from the virtual address and returned.
+    ///
+    /// - Offset is the index within one page (PAGE_SIZE default: 4096).
     pub fn page_offset(&self) -> usize {
+        // PAGE_SIZE(4096KiB) - 1 = 0b1111_1111_1111(2**12 = 512) = There are 12 bits of 1.
         self.0 & (PAGE_SIZE - 1)
     }
+
+    /// Is the Virtual Address aligned to a multiple of PAGE_SIZE(default: 4096)?
     pub fn aligned(&self) -> bool {
         self.page_offset() == 0
     }
@@ -212,6 +270,11 @@ impl PhysAddr {
     /// Truncate to a multiple of PAGE_SIZE.
     /// - This comes in handy when asking for the starting address of a page.
     ///
+    /// # Why?
+    /// 4096 = 2**12
+    ///
+    /// Physical Address >> Offset(12bit) => Physical Page Number.
+    ///
     /// # Examples
     ///
     /// - If `PAGE_SIZE` is 4096
@@ -219,14 +282,14 @@ impl PhysAddr {
     /// ```rust
     /// // PhisAddr(8192)
     /// let phis_address = PhisAddr::from(4096 * 2);
-    /// // (4096 * 2) − 1 + 4096) / 4096
+    /// // (4096 * 2) / 4096
     /// let phis_page_num = phis_address.floor();
     /// assert_eq!(phis_page_num.0, 2);
     ///
     /// // PhisAddr(8194)
     /// let phis_address = PhisAddr::from(4097 * 2);
-    /// // (4097 * 2) − 1 + 4096) / 4096
-    /// let phis_page_num = phis_address.ceil();
+    /// // (4097 * 2) / 4096
+    /// let phis_page_num = phis_address.floor();
     /// assert_eq!(phis_page_num.0, 2);
     /// ```
     pub fn floor(&self) -> PhysPageNum {
@@ -234,6 +297,12 @@ impl PhysAddr {
     }
 
     /// Increments by 1 for every PAGE_SIZE(4096)
+    ///
+    /// # Why?
+    /// 4096 = 2**12
+    ///
+    /// Physical Address >> Offset(12bit) => Physical Page Number.
+    ///
     /// # Examples
     ///
     /// - If `PAGE_SIZE` is 4096
@@ -241,28 +310,29 @@ impl PhysAddr {
     /// ```rust
     /// // PhisAddr(8192)
     /// let phis_address = PhisAddr::from(4096 * 2);
-    /// // (4096 * 2) − 1 + 4096) / 4096
+    /// // ((4096 * 2) − 1 + 4096) / 4096
     /// let phis_page_num = phis_address.ceil();
     /// assert_eq!(phis_page_num.0, 2);
     ///
     /// // PhisAddr(8194)
     /// let phis_address = PhisAddr::from(4097 * 2);
-    /// // (4097 * 2) − 1 + 4096) / 4096
+    /// // ((4097 * 2) − 1 + 4096) / 4096
     /// let phis_page_num = phis_address.ceil();
     /// assert_eq!(phis_page_num.0, 3);
     /// ```
     pub fn ceil(&self) -> PhysPageNum {
-        //
         PhysPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
     }
 
     /// Only the offset(12 bits) is taken from the physical address and returned.
+    ///
+    /// - Offset is the index within one page (PAGE_SIZE default: 4096).
     pub fn page_offset(&self) -> usize {
         // PAGE_SIZE(4096KiB) - 1 = 0b1111_1111_1111(2**12 = 512) = There are 12 bits of 1.
         self.0 & (PAGE_SIZE - 1)
     }
 
-    /// Is the Physical Address aligned to a multiple of PAGE_SIZE (default: 4096)?
+    /// Is the Physical Address aligned to a multiple of PAGE_SIZE(default: 4096)?
     pub fn aligned(&self) -> bool {
         self.page_offset() == 0
     }
@@ -357,6 +427,7 @@ pub trait StepByOne {
 }
 
 impl StepByOne for VirtPageNum {
+    /// VirtualPageNumber += 1
     fn step(&mut self) {
         self.0 += 1;
     }

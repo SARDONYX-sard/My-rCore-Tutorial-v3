@@ -93,5 +93,6 @@
   },
   "rust-analyzer.cargo.features": [
     "board_qemu"
-  ]
+  ],
+  "rust-analyzer.checkOnSave.allTargets": false
 }
