@@ -31,6 +31,8 @@ tmux kill-session [-t <target session name>]
 
 - prefix: `ctrl+b`(default)
 
+See more: <https://tmuxcheatsheet.com>
+
 |      command      | role                                      |
 | :---------------: | :---------------------------------------- |
 |    prefix + ?     | key bindings list                         |
@@ -41,7 +43,7 @@ tmux kill-session [-t <target session name>]
 |    prefix + n     | Move to next window                       |
 |    prefix + p     | Move to previous window                   |
 |  prefix + &#124;  | Split pane left/right                     |
-|    prefix + -     | split pane vertically                     |
+|    prefix + %     | split pane vertically                     |
 |    prefix + h     | Move to left pane                         |
 |    prefix + j     | move to bottom pane                       |
 |    prefix + k     | Move to top pane                          |
