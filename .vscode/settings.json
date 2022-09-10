@@ -42,6 +42,7 @@
     "mutatorily",
     "noreturn",
     "objcopy",
+    "ppid",
     "putchar",
     "RAII",
     "repr",
