@@ -29,9 +29,11 @@
     "erodata",
     "etext",
     "GETCHAR",
+    "getpid",
     "icache",
     "idxs",
     "incbin",
+    "initproc",
     "inlateout",
     "kstack",
     "lookaside",
@@ -71,6 +73,7 @@
     "unmapping",
     "userspace",
     "Virt",
+    "waitpid",
     "xstate"
   ],
   "files.associations": {
