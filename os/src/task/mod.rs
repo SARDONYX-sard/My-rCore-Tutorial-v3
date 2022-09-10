@@ -10,6 +10,9 @@
 //! might not be what you expect.
 
 mod context;
+mod manager;
+mod pid;
+mod processor;
 mod switch;
 #[allow(clippy::module_inception)]
 mod task;
@@ -19,6 +22,7 @@ use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
 use alloc::vec::Vec;
 use lazy_static::*;
+pub use manager::fetch_task;
 use switch::__switch;
 use task::{TaskControlBlock, TaskStatus};
 
