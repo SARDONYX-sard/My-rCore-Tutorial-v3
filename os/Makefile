@@ -28,6 +28,9 @@ OBJCOPY := rust-objcopy --binary-architecture=riscv64
 # Disassembly
 DISASM ?= -x
 
+# Run usertests or usershell
+TEST ?=
+
 build: env $(KERNEL_BIN)
 
 env:
@@ -40,7 +43,7 @@ $(KERNEL_BIN): kernel
 	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
 
 kernel:
-	@cd ../user && make build
+	@cd ../user && make build TEST=$(TEST)
 	@echo Platform: $(BOARD)
 	@cargo build $(MODE_ARG) --features "board_$(BOARD)"
 
