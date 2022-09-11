@@ -78,6 +78,8 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Install dependencies
+        run: cd os && cargo install && cd - && cd user && cargo install
 
   lint:
     name: Check
@@ -147,13 +149,15 @@ jobs:
             ~/.rustup/update-hashes
           key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
 
+      - name: Cache cargo-binutils
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin
+          key: cargo-0.3.6
       # os.bin cannot be started if it contains metadata
       # Need objcopy to erase metadata
       - name: Install cargo-binutils
-        uses: baptiste0928/cargo-install@v1
-        with:
-          crate: cargo-binutils
-          version: latest
+        run: cargo install cargo-binutils --version 0.3.6
 
       - name: Restore cargo dependencies
         uses: Swatinem/rust-cache@v2
