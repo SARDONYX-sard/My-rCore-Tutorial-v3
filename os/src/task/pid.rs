@@ -84,7 +84,7 @@ pub struct KernelStack {
 }
 
 impl KernelStack {
-    ///Create a kernelStack from pid
+    ///Create a kernelStack from pid(process id)
     pub fn new(pid_handle: &PidHandle) -> Self {
         let pid = pid_handle.0;
         let (kernel_stack_bottom, kernel_stack_top) = kernel_stack_position(pid);
