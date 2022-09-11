@@ -101,14 +101,22 @@ pub fn yield_() -> isize {
     sys_yield()
 }
 
+// Get current time.
 pub fn get_time() -> isize {
     sys_get_time()
 }
 
+/// Get process id.
 pub fn getpid() -> isize {
     sys_getpid()
 }
 
+/// Create a child process with a new address space that inherits the stack of the parent process.
+/// The current process forks a child process.
+///
+/// # Return
+/// - If child process => 0
+/// - If current process => PID(Process Identifier) of child process
 pub fn fork() -> isize {
     sys_fork()
 }
