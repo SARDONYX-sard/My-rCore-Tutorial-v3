@@ -78,8 +78,6 @@ jobs:
 
       - name: Cache cargo dependencies
         uses: ./.github/actions/cache_cargo
-        with:
-          shared-key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install dependencies
         run: cd os && make build
 
@@ -150,16 +148,6 @@ jobs:
             ~/.rustup/toolchains
             ~/.rustup/update-hashes
           key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
-
-      - name: Cache cargo-binutils
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo/bin
-          key: cargo-0.3.6
-      # os.bin cannot be started if it contains metadata
-      # Need objcopy to erase metadata
-      - name: Install cargo-binutils
-        run: cargo install cargo-binutils --version 0.3.6
 
       - name: Restore cargo cache
         uses: ./.github/actions/cache_cargo
