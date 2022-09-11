@@ -16,6 +16,11 @@ jobs:
     outputs:
       TOOL_CHAIN: nightly-2022-08-28
       BINUTILS_VERSION: 0.3.6
+    steps:
+      - id: SET_PARAMS
+        run: |
+          echo "::set-output name=TOOL_CHAIN::$TOOL_CHAIN"
+          echo "::set-output name=BINUTILS_VERSION::$BINUTILS_VERSION"
 
   build:
     name: Build
