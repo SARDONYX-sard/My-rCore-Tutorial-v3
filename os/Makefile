@@ -82,7 +82,7 @@ endef
 run: build
 	$(QEMU) $(QEMU_OPTIONS)
 
-run-only:
+run-ci: kernel
 	$(QEMU) $(QEMU_OPTIONS)
 
 # ---------------  debug  -----------------
