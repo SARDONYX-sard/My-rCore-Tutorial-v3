@@ -87,11 +87,7 @@ jobs:
           key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
 
       - name: Cache cargo dependencies
-        id: cargo-dependencies
         uses: ./.github/actions/cache_cargo
-      - name: Install dependencies
-        if: steps.cargo-dependencies.outputs.cache-hit != 'true'
-        run: cd os && make build
 
   lint:
     name: Check
