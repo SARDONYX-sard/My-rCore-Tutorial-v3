@@ -76,6 +76,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
+      - name: Restore cache rust-toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
+
       - name: Cache cargo dependencies
         uses: ./.github/actions/cache_cargo
       - name: Install dependencies
