@@ -48,7 +48,7 @@ _num_app:
 _app_names:"#
     )?;
     for app in apps.iter() {
-        writeln!(f, r#"     .string "{}""#, app)?;
+        writeln!(f, r#"    .string "{}""#, app)?;
     }
 
     for (idx, app) in apps.iter().enumerate() {

@@ -1,0 +1,23 @@
+name: cache_cargo
+description: caching .cargo directory
+runs:
+  using: composite
+
+  steps:
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      id: cargo-dependencies
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          os/target/
+          user/target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: ${{ runner.os }}-cargo-
+    - name: Install dependencies
+      if: steps.cargo-dependencies.outputs.cache-hit != 'true'
+      shell: bash
+      run: cd os && make build TEST=1

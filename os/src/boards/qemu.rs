@@ -1,6 +1,9 @@
 //! Constants used in rCore for qemu
 
+/// 12_500_000 = 1.25MHz
 pub const CLOCK_FREQ: usize = 12500000;
+/// 0x81000000 = 2.016GiB, 0x1000000 = 16MiB
+pub const MEMORY_END: usize = 0x81000000;
 
 pub const MMIO: &[(usize, usize)] = &[
     (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
@@ -59,6 +62,8 @@ impl QEMUExit for RISCV64 {
 
         unsafe {
             asm!(
+                // ref: https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#sw
+                // store word(risc-v: 32bit)
                 "sw {0}, 0({1})",
                 in(reg)code_new, in(reg)self.addr
             );
@@ -68,6 +73,8 @@ impl QEMUExit for RISCV64 {
             // this function here is the last expression in the `panic!()` handler
             // itself. This prevents a possible infinite loop.
             loop {
+                // ref: https://msyksphinz-self.github.io/riscv-isadoc/html/rvi.html#wfi
+                // wait for interrupt
                 asm!("wfi", options(nomem, nostack));
             }
         }
