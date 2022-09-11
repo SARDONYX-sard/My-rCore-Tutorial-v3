@@ -79,7 +79,7 @@ jobs:
         with:
           shared-key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install dependencies
-        run: cd os && cargo install && cd - && cd user && cargo install
+        run: cd os && cargo build && cd - && cd user && cargo build
 
   lint:
     name: Check
