@@ -82,6 +82,9 @@ endef
 run: build
 	$(QEMU) $(QEMU_OPTIONS)
 
+run-ci: kernel
+	$(QEMU) $(QEMU_OPTIONS)
+
 # ---------------  debug  -----------------
 # -s: Listens for Qemu on local TCP port 1234 and waits for a connection from a GDB client
 # -S: Receives a request from GDB and then starts Qemu execution.
