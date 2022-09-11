@@ -50,6 +50,16 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
+      - name: Restore cache rust-toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: toolchain-${{ hashFiles('rust-toolchain') }}
+
       - uses: actions/cache@v3
         with:
           path: |
@@ -104,6 +114,24 @@ jobs:
           sudo make install
           qemu-system-riscv64 --version
 
+      - name: Restore cache rust-toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: toolchain-${{ hashFiles('rust-toolchain') }}
+
+      # os.bin cannot be started if it contains metadata
+      # Need objcopy to erase metadata
+      - name: Restore cache cargo-binutils
+        uses: baptiste0928/cargo-install@v1
+        with:
+          crate: cargo-binutils
+          version: latest
+
       - uses: actions/cache@v3
         with:
           path: |
@@ -122,6 +150,16 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
+
+      - name: Restore cache rust-toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: toolchain-${{ hashFiles('rust-toolchain') }}
 
       - uses: actions/cache@v3
         with:
