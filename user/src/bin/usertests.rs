@@ -22,9 +22,7 @@ static SUCC_TESTS: &[(&str, &str, &str, &str, i32)] = &[
     ("yield\0", "\0", "\0", "\0", 0),
 ];
 
-static FAIL_TESTS: &[(&str, &str, &str, &str, i32)] = &[
-    ("stack_overflow\0", "\0", "\0", "\0", -2),
-];
+static FAIL_TESTS: &[(&str, &str, &str, &str, i32)] = &[("stack_overflow\0", "\0", "\0", "\0", -2)];
 
 use user_lib::{exec, fork, waitpid};
 
@@ -72,7 +70,7 @@ fn run_tests(tests: &[(&str, &str, &str, &str, i32)]) -> i32 {
             assert_eq!(pid, wait_pid);
             if exit_code == test.4 {
                 // summary apps with  exit_code
-                pass_num = pass_num + 1;
+                pass_num += 1;
             }
             println!(
                 "\x1b[32mUsertests: Test {} in Process {} exited with code {}\x1b[0m",
@@ -110,5 +108,5 @@ pub fn main() -> i32 {
         );
     }
     println!(" Usertests failed!");
-    return -1;
+    -1
 }
