@@ -20,4 +20,4 @@ runs:
     - name: Install dependencies
       if: steps.cargo-dependencies.outputs.cache-hit != 'true'
       shell: bash
-      run: cd os && make build
+      run: cd os && make build TEST=1
