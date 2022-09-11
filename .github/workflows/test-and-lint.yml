@@ -15,15 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       TOOL_CHAIN: nightly-2022-08-28
-      BINUTILS_VERSION: 0.3.6
     steps:
       - id: SET_PARAMS
         run: |
           echo "::set-output name=TOOL_CHAIN::$TOOL_CHAIN"
-          echo "::set-output name=BINUTILS_VERSION::$BINUTILS_VERSION"
 
-  build:
-    name: Build
+  setup:
+    name: Setup
     needs: parameters
     runs-on: ubuntu-latest
     steps:
@@ -47,24 +45,10 @@ jobs:
           profile: minimal
           components: rust-src, llvm-tools-preview
 
-      - name: Cache cargo-binutils
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo-install/cargo-binutils
-          key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
-      # os.bin cannot be started if it contains metadata
-      # Need objcopy to erase metadata
-      - name: Install cargo-binutils
-        uses: baptiste0928/cargo-install@v1
-        with:
-          crate: cargo-binutils
-          version: ${{ needs.parameters.outputs.BINUTILS_VERSION }}
-          cache-key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
-
-  lint:
-    name: Check
+  formatting:
+    name: Formatting
     runs-on: ubuntu-latest
-    needs: ["parameters", "build"]
+    needs: ["parameters", "setup"]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
@@ -79,32 +63,46 @@ jobs:
             ~/.rustup/update-hashes
           key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
 
-      - name: Restore cache cargo-binutils
-        uses: actions/cache@v3
-        with:
-          path: ~/.cargo-install/cargo-binutils
-          key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
+      - name: Check formatting
+        run: make fmt-check
 
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - name: Run `cargo check`
-        run: make check
-
-  formatting:
-    name: Formatting
+  build:
+    name: Build
+    needs: ["parameters", "setup"]
     runs-on: ubuntu-latest
-    needs: build
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
 
-      - name: Check formatting
-        run: make fmt-check
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+  lint:
+    name: Check
+    runs-on: ubuntu-latest
+    needs: ["parameters", "setup", "build"]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Restore cache rust-toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
+
+      - name: Cache cargo dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - name: Run `cargo check`
+        run: make check
 
   test:
     name: Test
@@ -113,7 +111,7 @@ jobs:
       matrix:
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
-    needs: ["parameters", "build"]
+    needs: ["parameters", "setup", "build"]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
@@ -149,19 +147,18 @@ jobs:
             ~/.rustup/update-hashes
           key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
 
-      - name: Restore cache cargo-binutils
-        uses: actions/cache@v3
+      # os.bin cannot be started if it contains metadata
+      # Need objcopy to erase metadata
+      - name: Install cargo-binutils
+        uses: baptiste0928/cargo-install@v1
         with:
-          path: ~/.cargo-install/cargo-binutils
-          key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
+          crate: cargo-binutils
+          version: latest
 
-      - uses: actions/cache@v3
+      - name: Restore cargo dependencies
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          shared-key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Run test
         run: cd ./os && make run TEST=1
         timeout-minutes: 10
@@ -169,7 +166,7 @@ jobs:
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
-    needs: ["parameters", "build"]
+    needs: ["parameters", "setup", "build"]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
@@ -184,18 +181,9 @@ jobs:
             ~/.rustup/update-hashes
           key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
 
-      - name: Restore cache cargo-binutils
-        uses: actions/cache@v3
+      - name: Restore cargo dependencies
+        uses: Swatinem/rust-cache@v2
         with:
-          path: ~/.cargo-install/cargo-binutils
-          key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
-
-      - uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          shared-key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Run `cargo clippy`
         run: make clippy
