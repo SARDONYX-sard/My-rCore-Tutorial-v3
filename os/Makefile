@@ -35,7 +35,7 @@ build: env $(KERNEL_BIN)
 
 env:
 	(rustup target list | grep "riscv64gc-unknown-none-elf (installed)") || rustup target add $(TARGET)
-	(cargo install --list | egrep "(rust-objdump)|(rust-objcopy)") || cargo install cargo-binutils
+	cargo install cargo-binutils
 	rustup component add rust-src
 	rustup component add llvm-tools-preview
 
@@ -80,6 +80,9 @@ define QEMU_OPTIONS
 endef
 
 run: build
+	$(QEMU) $(QEMU_OPTIONS)
+
+run-only:
 	$(QEMU) $(QEMU_OPTIONS)
 
 # ---------------  debug  -----------------

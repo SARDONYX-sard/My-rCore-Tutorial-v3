@@ -160,7 +160,7 @@ jobs:
       - name: Restore cargo cache
         uses: ./.github/actions/cache_cargo
       - name: Run test
-        run: cd ./os && make run TEST=1
+        run: cd ./os && make run-only TEST=1
         timeout-minutes: 10
 
   clippy:
