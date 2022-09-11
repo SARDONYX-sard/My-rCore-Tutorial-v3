@@ -47,6 +47,11 @@ jobs:
           profile: minimal
           components: rust-src, llvm-tools-preview
 
+      - name: Cache cargo-binutils
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo-install/cargo-binutils
+          key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
       # os.bin cannot be started if it contains metadata
       # Need objcopy to erase metadata
       - name: Install cargo-binutils
@@ -75,11 +80,10 @@ jobs:
           key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
 
       - name: Restore cache cargo-binutils
-        uses: baptiste0928/cargo-install@v1
+        uses: actions/cache@v3
         with:
-          crate: cargo-binutils
-          version: ${{ needs.parameters.outputs.BINUTILS_VERSION }}
-          cache-key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
+          path: ~/.cargo-install/cargo-binutils
+          key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
 
       - uses: actions/cache@v3
         with:
@@ -146,11 +150,10 @@ jobs:
           key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
 
       - name: Restore cache cargo-binutils
-        uses: baptiste0928/cargo-install@v1
+        uses: actions/cache@v3
         with:
-          crate: cargo-binutils
-          version: ${{ needs.parameters.outputs.BINUTILS_VERSION }}
-          cache-key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
+          path: ~/.cargo-install/cargo-binutils
+          key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
 
       - uses: actions/cache@v3
         with:
@@ -182,11 +185,10 @@ jobs:
           key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
 
       - name: Restore cache cargo-binutils
-        uses: baptiste0928/cargo-install@v1
+        uses: actions/cache@v3
         with:
-          crate: cargo-binutils
-          version: ${{ needs.parameters.outputs.BINUTILS_VERSION }}
-          cache-key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
+          path: ~/.cargo-install/cargo-binutils
+          key: binutils-${{ needs.parameters.outputs.BINUTILS_VERSION }}
 
       - uses: actions/cache@v3
         with:
