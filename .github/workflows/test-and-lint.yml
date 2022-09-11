@@ -24,6 +24,7 @@ jobs:
 
   build:
     name: Build
+    needs: parameters
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
