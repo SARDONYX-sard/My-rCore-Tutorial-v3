@@ -47,6 +47,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
       - uses: actions/cache@v3
         with:
           path: |
@@ -62,6 +65,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
       - name: Check formatting
         run: make fmt-check
 
@@ -74,6 +80,9 @@ jobs:
     runs-on: ${{ matrix.platform }}
     needs: build
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
       - name: Cache QEMU
         uses: actions/cache@v3
         with:
@@ -110,6 +119,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
       - uses: actions/cache@v3
         with:
           path: |
