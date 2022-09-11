@@ -160,7 +160,7 @@ jobs:
       - name: Restore cargo cache
         uses: ./.github/actions/cache_cargo
       - name: Run test
-        run: cd ./os && cargo build --release --features "board_qemu" && make run-only TEST=1
+        run: cd ./os && cargo build --release --features "board_qemu" && make run-ci TEST=1
         timeout-minutes: 10
 
   clippy:
