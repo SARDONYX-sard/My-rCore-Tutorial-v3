@@ -376,6 +376,8 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
 }
 
 ///translate a generic through page table and return a mutable reference
+///
+/// Get physical address corresponding to virtual address of `ptr` with `token` as root node.
 pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
     //println!("into translated_refmut!");
     let page_table = PageTable::from_token(token);
