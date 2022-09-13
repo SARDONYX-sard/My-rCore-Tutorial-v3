@@ -367,6 +367,13 @@ impl VirtPageNum {
     }
 }
 
+impl PhysAddr {
+    /// Get the mutable pointer of Physical Address.
+    pub fn get_mut<T>(&self) -> &'static mut T {
+        unsafe { (self.0 as *mut T).as_mut().unwrap() }
+    }
+}
+
 impl PhysPageNum {
     /// Get a mutable reference to 1 page table.
     ///

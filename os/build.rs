@@ -38,6 +38,19 @@ _num_app:
     }
     writeln!(f, r#"    .quad app_{}_end"#, apps.len() - 1)?;
 
+    // The .string pseudo instruction is used to place the application names in order in the data segment.
+    // The linker automatically adds the separator "the \0" to the end of each string,
+    // and their position is indicated by the global symbol _app_names.
+    writeln!(
+        f,
+        r#"
+    .global _app_names
+_app_names:"#
+    )?;
+    for app in apps.iter() {
+        writeln!(f, r#"    .string "{}""#, app)?;
+    }
+
     for (idx, app) in apps.iter().enumerate() {
         println!("app_{}: {}", idx, app);
         // need.align 3(8byte)

@@ -19,7 +19,7 @@ DONE_MESSAGE := $(IS_SUCCESS_PREV_CMD) && printf "$(ANSI_ESC)32mDone.$(RESET_COL
 
 # Local pre-test to see if gitHub ci passes.
 ci: fmt-check check clippy
-	@cd os && make build && $(DONE_MESSAGE)
+	@cd os && make run TEST=1 && $(DONE_MESSAGE)
 
 fmt:
 	@printf "\033[0;34mFormatting *.rs...\033[0;0m\n"

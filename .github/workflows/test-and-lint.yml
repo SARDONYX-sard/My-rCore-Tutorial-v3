@@ -10,31 +10,105 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint:
-    name: Check
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [ubuntu-latest]
-    runs-on: ${{ matrix.platform }}
+  parameters:
+    name: Set parameters
+    runs-on: ubuntu-latest
+    outputs:
+      TOOL_CHAIN: nightly-2022-08-28
+    steps:
+      - id: SET_PARAMS
+        run: |
+          echo "::set-output name=TOOL_CHAIN::$TOOL_CHAIN"
+
+  setup:
+    name: Setup
+    needs: parameters
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
+
+      - name: Cache rust-toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
       - name: Install Rust Toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: nightly-2022-08-28
+          toolchain: ${{ needs.parameters.outputs.TOOL_CHAIN }}
           target: riscv64gc-unknown-none-elf
           profile: minimal
-          components: rust-src
-      # os.bin cannot be started if it contains metadata
-      # Need objcopy to erase metadata
-      - name: Install cargo-binutils
-        uses: actions-rs/install@v0.1
+          components: rust-src, llvm-tools-preview
+
+  formatting:
+    name: Formatting
+    runs-on: ubuntu-latest
+    needs: ["parameters", "setup"]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Restore cache rust-toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v3
         with:
-          crate: cargo-binutils
-          version: latest
-          use-tool-cache: true
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
+
+      - name: Check formatting
+        run: make fmt-check
+
+  build:
+    name: Build
+    needs: ["parameters", "setup"]
+    runs-on: ubuntu-latest
+    env:
+      RUSTC_FORCE_INCREMENTAL: 1
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Restore cache rust-toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
+
+      - name: Cache cargo dependencies
+        uses: ./.github/actions/cache_cargo
+
+  lint:
+    name: Check
+    runs-on: ubuntu-latest
+    needs: ["parameters", "setup", "build"]
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v2
+
+      - name: Restore cache rust-toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
+
+      - name: Restore cargo cache
+        uses: ./.github/actions/cache_cargo
       - name: Run `cargo check`
         run: make check
 
@@ -45,23 +119,12 @@ jobs:
       matrix:
         platform: [ubuntu-latest]
     runs-on: ${{ matrix.platform }}
+    env:
+      RUSTC_FORCE_INCREMENTAL: 1
+    needs: ["parameters", "setup", "build"]
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
-      - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2022-08-28
-          target: riscv64gc-unknown-none-elf
-          profile: minimal
-          components: rust-src, llvm-tools-preview
-
-      - name: Install cargo-binutils
-        uses: actions-rs/install@v0.1
-        with:
-          crate: cargo-binutils
-          version: latest
-          use-tool-cache: true
 
       - name: Cache QEMU
         uses: actions/cache@v3
@@ -83,38 +146,44 @@ jobs:
           fi
           sudo make install
           qemu-system-riscv64 --version
-      - name: Run test
-        run: cd ./os && make run
-        timeout-minutes: 10
 
-  formatting:
-    name: Formatting
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v2
-      - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Restore cache rust-toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v3
         with:
-          toolchain: nightly-2022-08-28
-          target: riscv64gc-unknown-none-elf
-          profile: minimal
-          components: rustfmt
-      - name: Check formatting
-        run: make fmt-check
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
+
+      - name: Restore cargo cache
+        uses: ./.github/actions/cache_cargo
+      - name: Run test
+        run: cd ./os && cargo build --release --features "board_qemu" && make run-ci TEST=1
+        timeout-minutes: 10
 
   clippy:
     name: Clippy
     runs-on: ubuntu-latest
+    needs: ["parameters", "setup", "build"]
+    env:
+      RUSTC_FORCE_INCREMENTAL: 1
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
-      - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
+
+      - name: Restore cache rust-toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v3
         with:
-          toolchain: nightly-2022-08-28
-          target: riscv64gc-unknown-none-elf
-          profile: minimal
-          components: clippy, rust-src
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains
+            ~/.rustup/update-hashes
+          key: toolchain-${{ needs.parameters.outputs.TOOL_CHAIN }}
+
+      - name: Restore cargo cache
+        uses: ./.github/actions/cache_cargo
       - name: Run `cargo clippy`
         run: make clippy

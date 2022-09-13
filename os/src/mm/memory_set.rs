@@ -94,6 +94,19 @@ impl MemorySet {
         );
     }
 
+    ///Remove `MapArea` that starts with `start_vpn`
+    pub fn remove_area_with_start_vpn(&mut self, start_vpn: VirtPageNum) {
+        if let Some((idx, area)) = self
+            .areas
+            .iter_mut()
+            .enumerate()
+            .find(|(_, area)| area.vpn_range.get_start() == start_vpn)
+        {
+            area.unmap(&mut self.page_table);
+            self.areas.remove(idx);
+        }
+    }
+
     /// Allocate memory for the range of `self.vpn_range` in `self.page_table`,
     ///
     /// and if data is passed as an argument, write to the allocated memory.
@@ -269,6 +282,27 @@ impl MemorySet {
         )
     }
 
+    /// Clone a same `MemorySet`
+    pub fn from_existed_user(user_space: &Self) -> Self {
+        let mut memory_set = Self::new_bare();
+        // map trampoline
+        memory_set.map_trampoline();
+        // copy data sections/trap_context/user_stack
+        for area in user_space.areas.iter() {
+            let new_area = MapArea::from_another(area);
+            memory_set.push(new_area, None);
+            // copy data from another space
+            for vpn in area.vpn_range {
+                let src_ppn = user_space.translate(vpn).unwrap().ppn();
+                let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
+                dst_ppn
+                    .get_bytes_array()
+                    .copy_from_slice(src_ppn.get_bytes_array());
+            }
+        }
+        memory_set
+    }
+
     /// The physical page number of the app's root table is written to the satp CSR of the current CPU,
     /// and from this point on, the SV39 paging mode is enabled
     /// and the MMU uses the multilevel page table in the kernel address space for address translation.
@@ -298,6 +332,12 @@ impl MemorySet {
     /// Makes a copy of the page table entry and returns it if found, or None if not found.
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.page_table.translate(vpn)
+    }
+
+    /// Clear all `MapArea`(virtual areas for each program).
+    pub fn recycle_data_pages(&mut self) {
+        // *self = Self::new_bare();
+        self.areas.clear();
     }
 }
 
@@ -334,6 +374,18 @@ impl MapArea {
         }
     }
 
+    /// Copy a logical segment from a logical segment with the same virtual address interval,
+    /// mapping method, and permission control, except that the data_frames field is empty because it
+    /// is not actually mapped to a physical page frame.
+    pub fn from_another(another: &MapArea) -> Self {
+        Self {
+            vpn_range: VPNRange::new(another.vpn_range.get_start(), another.vpn_range.get_end()),
+            data_frames: BTreeMap::new(),
+            map_type: another.map_type,
+            map_perm: another.map_perm,
+        }
+    }
+
     pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         let ppn: PhysPageNum;
         match self.map_type {
@@ -353,7 +405,6 @@ impl MapArea {
         page_table.map(vpn, ppn, pte_flags);
     }
 
-    #[allow(unused)]
     /// It calls the unmap interface of `PageTable` to delete key/value pairs
     /// whose key is the passed virtual page number.
     ///
@@ -381,7 +432,6 @@ impl MapArea {
         }
     }
 
-    #[allow(dead_code)]
     /// Remove mappings of the current logical segment to physical memory
     /// from the multilevel page table in the address space
     ///  to which the incoming logical segment belongs.
