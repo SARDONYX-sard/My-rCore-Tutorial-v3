@@ -14,7 +14,7 @@ RISC-V OS written in Rust
 
 - [x] Page table
 
-- [ ] Process
+- [x] Process
 
 - [ ] File System
 
