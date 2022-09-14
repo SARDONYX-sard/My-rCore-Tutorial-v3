@@ -20,6 +20,9 @@ runs:
     - name: Install dependencies
       if: steps.cargo_dependencies.outputs['cache-hit'] != 'true'
       shell: bash
-      run: |
-        echo ${{ steps.cargo_dependencies.outputs['cache-hit'] }}
-        cd os && make build TEST=1
+      run: cd os && make env
+      continue-on-error: true
+    - name: Install dependencies
+      if: steps.cargo_dependencies.outputs['cache-hit'] != 'true'
+      shell: bash
+      run: cd os && make build-ci TEST=1
