@@ -18,6 +18,6 @@ runs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-cargo-
     - name: Install dependencies
-      if: steps.cargo-dependencies.outputs.cache-hit != 'true'
+      if: ${{ steps.cargo-dependencies.outputs.cache-hit != 'true' }}
       shell: bash
       run: cd os && make build TEST=1
