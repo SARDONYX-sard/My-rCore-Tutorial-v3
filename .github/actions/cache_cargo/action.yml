@@ -6,7 +6,7 @@ runs:
   steps:
     - name: Cache cargo registry
       uses: actions/cache@v3
-      id: "cargo-dependencies"
+      id: cargo_dependencies
       with:
         path: |
           ~/.cargo/bin/
@@ -18,8 +18,8 @@ runs:
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
         restore-keys: ${{ runner.os }}-cargo-
     - name: Install dependencies
-      if: steps.cargo-dependencies.outputs.cache-hit != 'true'
+      if: steps.cargo_dependencies.outputs['cache-hit'] != 'true'
       shell: bash
       run: |
-        echo ${{ steps.cargo-dependencies.outputs.cache-hit != 'true' }}
+        echo ${{ steps.cargo_dependencies.outputs['cache-hit'] }}
         cd os && make build TEST=1
