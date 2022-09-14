@@ -1,5 +1,7 @@
 use core::arch::asm;
 
+const SYSCALL_OPEN: usize = 56;
+const SYSCALL_CLOSE: usize = 57;
 const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
@@ -25,6 +27,55 @@ fn syscall(id: usize, args: [usize; 3]) -> isize {
         );
     }
     ret
+}
+
+/// Opens a regular file and returns an accessible file descriptor.
+/// - syscall ID: 56
+/// # Parameters
+/// - `path`: Describe the filename of the file to be opened (for simplicity,
+/// the file system does not need to support directories, all files are placed in the root(`/`) directory).
+/// - `flags`: Describe the flags to be used when opening the file.
+///
+/// # Flags
+///
+/// | flags-bit |  permission  |                               Meaning                                     |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// |         0 |    read-only | it is opened in read-only mode `RDONLY`.                                  |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// |  0(0x001) |   write-only | it is opened in write-only mode `WRONLY`.                                 |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// |  1(0x002) | read & write | `RDWR` for both read and write.                                           |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// |  9(0x200) |       create | `CREATE` of the file is allowed and should be created if it is not found; |
+/// |           |              | if it already exists, the file size should be set to zero.                |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// | 10(0x400) |        trunc | it should be cleared and the size set back to zero,                       |
+/// |           |              | i.e. `TRUNC`, when opening the file.                                      |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+///
+/// # Return
+/// Conditional branching.
+/// - if there is an error => -1
+/// - otherwise=> returns the file descriptor of the file normally.
+///               Possible error cause: the file does not exist.
+pub fn sys_open(path: &str, flags: u32) -> isize {
+    syscall(SYSCALL_OPEN, [path.as_ptr() as usize, flags as usize, 0])
+}
+
+/// The current process closes the file.
+/// - syscall ID: 57
+///
+/// # Parameter
+/// - `fd`: File descriptor of the file to close.
+///
+/// # Return
+/// Conditional branching.
+/// - if the process terminated successfully => 0
+/// - otherwise => -1
+///   - Error cause: the file descriptor passed may not correspond to the file being opened.
+pub fn sys_close(fd: usize) -> isize {
+    syscall(SYSCALL_CLOSE, [fd, 0, 0])
 }
 
 /// Reads a piece of content from a file into a buffer.

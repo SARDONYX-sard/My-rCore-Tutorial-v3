@@ -8,6 +8,9 @@ pub mod console;
 mod lang_items;
 mod syscall;
 
+#[macro_use]
+extern crate bitflags;
+
 use buddy_system_allocator::LockedHeap;
 use syscall::*;
 
@@ -39,6 +42,87 @@ pub extern "C" fn _start() -> ! {
 #[no_mangle]
 fn main() -> i32 {
     panic!("Cannot find main!")
+}
+
+bitflags! {
+    pub struct OpenFlags: u32 {
+        /// It is opened in read-only mode
+        const RDONLY = 0;
+        /// It is opened in write-only mode.
+        const WRONLY = 1 << 0;
+        /// Both read and write.
+        const RDWR = 1 << 1;
+        /// `CREATE` of the file is allowed and should be created if it is not found;
+        /// if it already exists, the file size should be set to zero.
+        const CREATE = 1 << 9;
+        /// It should be cleared and the size set back to zero,
+        /// i.e. `TRUNC`, when opening the file.
+        const TRUNC = 1 << 10;
+    }
+}
+
+/// Opens a regular file and returns an accessible file descriptor.
+///
+/// # Parameters
+/// - `path`: Describe the filename of the file to be opened (for simplicity,
+/// the file system does not need to support directories, all files are placed in the root(`/`) directory).
+/// - `flags`: Describe the flags to be used when opening the file.
+///
+/// # Flags
+///
+/// | flags-bit |  permission  |                               Meaning                                     |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// |         0 |    read-only | it is opened in read-only mode `RDONLY`.                                  |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// |  0(0x001) |   write-only | it is opened in write-only mode `WRONLY`.                                 |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// |  1(0x002) | read & write | `RDWR` for both read and write.                                           |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// |  9(0x200) |       create | `CREATE` of the file is allowed and should be created if it is not found; |
+/// |           |              | if it already exists, the file size should be set to zero.                |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+/// | 10(0x400) |        trunc | it should be cleared and the size set back to zero,                       |
+/// |           |              | i.e. `TRUNC`, when opening the file.                                      |
+/// |-----------|--------------|---------------------------------------------------------------------------|
+///
+/// # Return
+/// Conditional branching.
+/// - if there is an error => -1
+/// - otherwise=> returns the file descriptor of the file normally.
+///               Possible error cause: the file does not exist.
+///
+/// # Example
+/// ```rust
+/// #[macro_use]
+/// extern crate user_lib;
+///
+/// use user_lib::{close, open, write, OpenFlags};
+///
+/// let test_str = "Hello, world!";
+/// let file_a = "file_a\0";
+/// let fd = open(file_a, OpenFlags::CREATE | OpenFlags::WRONLY);
+/// assert!(fd > 0);
+/// let fd = fd as usize;
+/// write(fd, test_str.as_bytes());
+/// close(fd);
+/// ```
+pub fn open(path: &str, flags: OpenFlags) -> isize {
+    sys_open(path, flags.bits)
+}
+
+/// The current process closes the file.
+///
+/// # Parameter
+/// - `fd`: File descriptor of the file to close.
+///
+/// # Return
+/// Conditional branching.
+/// - if the process terminated successfully => 0
+/// - otherwise => -1
+///   - Error cause: the file descriptor passed may not correspond to the file being opened.
+pub fn close(fd: usize) -> isize {
+    sys_close(fd)
 }
 
 /// Reads a piece of content from a file into a buffer.

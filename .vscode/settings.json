@@ -45,6 +45,8 @@
     "ppid",
     "putchar",
     "RAII",
+    "RDONLY",
+    "RDWR",
     "refmut",
     "repr",
     "riscv",
@@ -69,6 +71,7 @@
     "stvec",
     "syscall",
     "syscalls",
+    "TRUNC",
     "uart",
     "unborrowed",
     "uniprocessor",
@@ -77,6 +80,7 @@
     "userspace",
     "Virt",
     "waitpid",
+    "WRONLY",
     "xstate"
   ],
   "files.associations": {
