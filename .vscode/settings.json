@@ -35,6 +35,7 @@
     "incbin",
     "initproc",
     "inlateout",
+    "inodes",
     "kstack",
     "lookaside",
     "MMIO",
