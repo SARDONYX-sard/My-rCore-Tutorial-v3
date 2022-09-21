@@ -1,11 +1,15 @@
+use super::{get_block_cache, BlockDevice, BLOCK_SZ};
 use alloc::sync::Arc;
 
-use crate::{block_cache::get_block_cache, block_dev::BlockDevice, BLOCK_SZ};
-
+/// A bitmap block
 /// A bitmap block
 /// u64 * 64 = 4096bit
 type BitmapBlock = [u64; 64];
+/// Number of bits in a block
+const BLOCK_BITS: usize = BLOCK_SZ * 8;
 
+/// A bitmap
+///
 /// There are two types of bitmaps in the easy-fs layout, one for index nodes and one for data blocks.
 /// Each bitmap consists of blocks of 512 bytes, or 4096 bits each,
 /// and each bit represents the allocation status of the index node/block,
@@ -38,17 +42,16 @@ fn decomposition(mut bit: usize) -> (usize, usize, usize) {
 }
 
 impl Bitmap {
+    /// A new bitmap from start block id and number of blocks
     pub fn new(start_block_id: usize, blocks: usize) -> Self {
         Self {
             start_block_id,
             blocks,
         }
     }
-}
 
-const BLOCK_BITS: usize = BLOCK_SZ * 8;
-
-impl Bitmap {
+    /// Allocate a new block from a block device
+    ///
     /// # Return
     /// Conditional branching.
     /// - The position of the allocated bits, corresponding to the index node/block number
@@ -92,6 +95,7 @@ impl Bitmap {
         None
     }
 
+    /// Deallocate a block
     pub fn dealloc(&self, block_device: &Arc<dyn BlockDevice>, bit: usize) {
         let (block_pos, bits64_pos, inner_pos) = decomposition(bit);
         get_block_cache(block_pos + self.start_block_id, Arc::clone(block_device))
@@ -100,5 +104,10 @@ impl Bitmap {
                 assert!(bitmap_block[bits64_pos] & (1u64 << inner_pos) > 0);
                 bitmap_block[bits64_pos] -= 1u64 << inner_pos;
             });
+    }
+
+    /// Get the max number of allocatable blocks
+    pub fn maximum(&self) -> usize {
+        self.blocks * BLOCK_BITS
     }
 }
