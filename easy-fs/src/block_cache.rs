@@ -10,13 +10,13 @@ use spin::Mutex;
 /// When the BlockCache life cycle is complete and the buffer has been reclaimed from memory,
 /// the modified flag determines whether the data needs to be written back to disk.
 pub struct BlockCache {
-    /// A `BLOCK_SZ`(512)-byte array representing a buffer located in memory.
+    /// cached block data
     cache: [u8; BLOCK_SZ],
-    /// The number of the block from which this block cache originates is recorded on disk.
+    /// underlying block id
     block_id: usize,
-    /// A reference to the underlying block device from which the block can be read or written.
+    /// underlying block device
     block_device: Arc<dyn BlockDevice>,
-    /// Records whether the block has been modified since it was read from disk to the memory cache.
+    /// whether the block is dirty(the block has been modified since it was read from disk to the memory cache.)
     modified: bool,
 }
 
@@ -33,7 +33,7 @@ impl BlockCache {
         }
     }
 
-    /// Gets the byte address of the specified offset in BlockCache's internal buffer.
+    /// Get the address of an offset inside the cached block data
     fn addr_of_offset(&self, offset: usize) -> usize {
         &self.cache[offset] as *const _ as usize
     }
@@ -93,7 +93,7 @@ impl BlockCache {
 
 impl Drop for BlockCache {
     fn drop(&mut self) {
-        self.sync();
+        self.sync()
     }
 }
 
@@ -167,4 +167,12 @@ pub fn get_block_cache(
     BLOCK_CACHE_MANAGER
         .lock()
         .get_block_cache(block_id, block_device)
+}
+
+/// Sync all block cache to block device
+pub fn block_cache_sync_all() {
+    let manager = BLOCK_CACHE_MANAGER.lock();
+    for (_, cache) in manager.queue.iter() {
+        cache.lock().sync();
+    }
 }
