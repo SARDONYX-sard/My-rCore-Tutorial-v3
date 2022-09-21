@@ -28,6 +28,8 @@
     "ekernel",
     "erodata",
     "etext",
+    "filea",
+    "fileb",
     "GETCHAR",
     "getpid",
     "icache",
