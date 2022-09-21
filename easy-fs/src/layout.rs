@@ -83,7 +83,7 @@ impl SuperBlock {
 }
 
 /// Type of a disk inode
-#[derive(PartialEq)]
+#[derive(PartialEq, Eq)]
 pub enum DiskInodeType {
     File,
     Directory,
