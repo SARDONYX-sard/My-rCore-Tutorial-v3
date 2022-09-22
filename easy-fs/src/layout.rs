@@ -17,7 +17,7 @@ const INODE_INDIRECT2_COUNT: usize = INODE_INDIRECT1_COUNT * INODE_INDIRECT1_COU
 const DIRECT_BOUND: usize = INODE_DIRECT_COUNT;
 /// The upper bound of indirect1 inode index
 const INDIRECT1_BOUND: usize = DIRECT_BOUND + INODE_INDIRECT1_COUNT;
-/// The upper bound of indirect2 inode indexs
+/// The upper bound of indirect2 inode indexes
 #[allow(unused)]
 const INDIRECT2_BOUND: usize = INDIRECT1_BOUND + INODE_INDIRECT2_COUNT;
 
@@ -97,21 +97,31 @@ type DataBlock = [u8; BLOCK_SZ];
 /// A disk inode
 #[repr(C)]
 pub struct DiskInode {
+    /// Bytes of file/directory content
     pub size: u32,
+    /// Index of the data block that stores the contents of the file/directory
+    ///
+    /// BLOCK_SZ(512byte) * INODE_DIRECT_COUNT(28) =14,336 = 14KiB
     pub direct: [u32; INODE_DIRECT_COUNT],
     /// The first level index block in the data block area of the disk layout.
     ///
-    /// If the file is large, not only is the direct index array full,
-    /// but the first-level indirect index INDIRECT1 is also used.
-    ///
-    /// This refers to the first-level index block in the data block area of the disk layout.
+    /// Index for storing sizes larger than 14KiB specifiable in direct.
     ///
     /// Each u32 of this first-level index block is used to point to a data block
     /// in the data block area that holds the contents of the file, thus up to
     ///
-    /// 5124 = 128 blocks, equivalent to 64 KiB of content.
+    /// 512byte(1block) / 4 = 128byte, 128 * BLOCK_SZ(512byte) = 64KiB of content.
+    ///
+    ///  - Divide 4: To make efficient use of space, the DiskInode size is set to 128 bytes, so that each block can hold exactly four DiskInodes.
     pub indirect1: u32,
+    /// Each u32 in the secondary index block refers to a different primary index block in the data block area.
+    /// Therefore, up to
+    ///
+    /// 128(512byte(1block) / 4) x 64KiB(max size that can be specified by direct1 ) = 8MiB
+    ///
+    /// can be indexed in the secondary indirect index.
     pub indirect2: u32,
+    /// File/Directory
     type_: DiskInodeType,
 }
 
@@ -142,6 +152,7 @@ impl DiskInode {
         Self::_data_blocks(self.size)
     }
 
+    /// Round up the size given as argument to multiples of Block size.
     fn _data_blocks(size: u32) -> u32 {
         (size + BLOCK_SZ as u32 - 1) / BLOCK_SZ as u32
     }
