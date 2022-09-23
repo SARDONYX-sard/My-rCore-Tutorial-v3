@@ -5,10 +5,10 @@ use alloc::sync::Arc;
 use lazy_static::*;
 use spin::Mutex;
 
-/// When a BlockCache is created, this triggers read_block, which reads the data on the block from disk to the buffer cache.
+/// `block_id`, a `BlockDevice` that implements read/write to `self.cache`, and ties the cache together.
 ///
-/// When the BlockCache life cycle is complete and the buffer has been reclaimed from memory,
-/// the modified flag determines whether the data needs to be written back to disk.
+/// When the BlockCache life cycle is complete and the buffer has been recycled from memory,
+/// - `modified` flag is true => Write back cache memory data to disk automatically when no longer referenced.
 pub struct BlockCache {
     /// cached block data
     cache: [u8; BLOCK_SZ],
@@ -126,8 +126,10 @@ impl BlockCacheManager {
             Arc::clone(&pair.1)
         } else {
             // substitute
+            // 1st, check to see if the max number of cashable items has been reached.
             if self.queue.len() == BLOCK_CACHE_SIZE {
                 // from front to tail
+                // 2nd, delete caches that are not referenced outside the manager.
                 if let Some((idx, _)) = self
                     .queue
                     .iter()
@@ -142,7 +144,7 @@ impl BlockCacheManager {
                     panic!("Run out of BlockCache!");
                 }
             }
-            // load block into mem and push back
+            // 3rd, load block into mem and push back
             let block_cache = Arc::new(Mutex::new(BlockCache::new(
                 block_id,
                 Arc::clone(&block_device),

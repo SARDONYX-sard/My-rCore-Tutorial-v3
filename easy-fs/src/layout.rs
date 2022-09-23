@@ -34,9 +34,19 @@ pub struct SuperBlock {
     /// This is different from the total number of blocks on the disk,
     /// since the file system may not occupy the entire disk.
     pub total_blocks: u32,
+    /// It is a bitmap of the index node and is as long as the number of blocks.
+    ///
+    /// It records the index nodes in subsequent index node areas
+    /// that have been allocated for use and those that have not yet been allocated.
     pub inode_bitmap_blocks: u32,
+    /// The index node area is several blocks long. Each of these blocks contains several index nodes.
     pub inode_area_blocks: u32,
+    /// The data block bitmap, which is as long as a number of blocks.
+    ///
+    /// Subsequent block areas record which blocks have been used and which have not yet been allocated.
     pub data_bitmap_blocks: u32,
+    /// In the data block area, as the name implies,
+    /// each allocated block holds the specific data contents of a file or directory.
     pub data_area_blocks: u32,
 }
 
