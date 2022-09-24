@@ -1,3 +1,4 @@
+//! Index node layer providing file-related system calls
 use super::{
     block_cache_sync_all, get_block_cache, BlockDevice, DirEntry, DiskInode, DiskInodeType,
     EasyFileSystem, DIRENT_SZ,
