@@ -13,7 +13,9 @@ pub struct EasyFileSystem {
     pub inode_bitmap: Bitmap,
     ///Data bitmap
     pub data_bitmap: Bitmap,
+    /// starting block number of inode block area
     inode_area_start_block: u32,
+    /// starting block number of data block area
     data_area_start_block: u32,
 }
 
@@ -71,6 +73,7 @@ impl EasyFileSystem {
         );
         // write back immediately
         // create a inode for root node "/"
+        // Since this is the first time it has been secured, its number is fixed at 0
         assert_eq!(efs.alloc_inode(), 0);
         let (root_inode_block_id, root_inode_offset) = efs.get_disk_inode_pos(0);
         get_block_cache(root_inode_block_id as usize, Arc::clone(&block_device))
@@ -115,6 +118,10 @@ impl EasyFileSystem {
     }
 
     /// Get inode by id
+    ///
+    /// # Returns
+    ///
+    /// (inode id, inode offset)
     pub fn get_disk_inode_pos(&self, inode_id: u32) -> (u32, usize) {
         let inode_size = core::mem::size_of::<DiskInode>();
         let inodes_per_block = (BLOCK_SZ / inode_size) as u32;
@@ -131,11 +138,17 @@ impl EasyFileSystem {
     }
 
     /// Allocate a new inode
+    ///
+    /// # Return
+    /// index node number
     pub fn alloc_inode(&mut self) -> u32 {
         self.inode_bitmap.alloc(&self.block_device).unwrap() as u32
     }
 
     /// Allocate a data block
+    ///
+    /// # Return
+    /// block number
     pub fn alloc_data(&mut self) -> u32 {
         self.data_bitmap.alloc(&self.block_device).unwrap() as u32 + self.data_area_start_block
     }

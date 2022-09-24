@@ -105,6 +105,23 @@ type IndirectBlock = [u32; BLOCK_SZ / 4];
 type DataBlock = [u8; BLOCK_SZ];
 
 /// A disk inode
+///
+/// - 128 bytes
+///
+/// |    name   |  type   |  size |
+/// |-----------|---------|-------|
+/// |    size   |  u32    |  4byte|
+/// |   direct  |  u32*28 |112byte|
+/// | indirect1 |  u32    |  4byte|
+/// | indirect2 |  u32    |  4byte|
+/// |    type_  |  i32    |  4byte|
+///
+/// #\[repr(C)\] enum
+/// - sw: store word(32bit)
+/// - can use -1 -> i32
+/// - when use 1 -> use sw(i.e. Even if it is less than 255 (8 bits), 32 bits are stored in the stack.)
+///
+/// - https://godbolt.org/z/34f8cczq6
 #[repr(C)]
 pub struct DiskInode {
     /// Bytes of file/directory content
@@ -112,6 +129,8 @@ pub struct DiskInode {
     /// Index of the data block that stores the contents of the file/directory
     ///
     /// BLOCK_SZ(512byte) * INODE_DIRECT_COUNT(28) =14,336 = 14KiB
+    ///
+    /// - BLOCK_SZ(512byte): 512 * 8 = 4096 bit
     pub direct: [u32; INODE_DIRECT_COUNT],
     /// The first level index block in the data block area of the disk layout.
     ///
@@ -263,9 +282,14 @@ impl DiskInode {
             return;
         }
         // fill indirect2 from (a0, b0) -> (a1, b1)
+
+        // old indirect1 inode group
         let mut a0 = current_blocks as usize / INODE_INDIRECT1_COUNT;
+        // old indirect1 inode position
         let mut b0 = current_blocks as usize % INODE_INDIRECT1_COUNT;
+        // new indirect1 inode group
         let a1 = total_blocks as usize / INODE_INDIRECT1_COUNT;
+        // new indirect1 inode position
         let b1 = total_blocks as usize % INODE_INDIRECT1_COUNT;
         // alloc low-level indirect1
         get_block_cache(self.indirect2 as usize, Arc::clone(block_device))
@@ -283,6 +307,8 @@ impl DiskInode {
                         });
                     // move to next
                     b0 += 1;
+                    // When the maximum position in the inode group is reached,
+                    // the index is shifted to the next group.
                     if b0 == INODE_INDIRECT1_COUNT {
                         b0 = 0;
                         a0 += 1;
