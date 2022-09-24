@@ -29,6 +29,7 @@ fn main() {
     easy_fs_pack().expect("Error when packing easy-fs!");
 }
 
+/// Write the application's ELFs to a disk file(fs.img).
 fn easy_fs_pack() -> std::io::Result<()> {
     let matches = App::new("EasyFileSystem packer")
         .arg(
@@ -66,10 +67,14 @@ fn easy_fs_pack() -> std::io::Result<()> {
         .into_iter()
         .map(|dir_entry| {
             let mut name_with_ext = dir_entry.unwrap().file_name().into_string().unwrap();
+            // File extensions are removed and collected in the vector application.
             name_with_ext.drain(name_with_ext.find('.').unwrap()..name_with_ext.len());
             name_with_ext
         })
         .collect();
+
+    // The ELF file (this is a Linux file) for the application in question is found in the directory
+    // where the application executable file is located, and the data is read into memory.
     for app in apps {
         // load app data from host file system
         let mut host_file = File::open(format!("{}{}", target_path, app)).unwrap();
@@ -77,7 +82,10 @@ fn easy_fs_pack() -> std::io::Result<()> {
         host_file.read_to_end(&mut all_data).unwrap();
         // create a file in easy-fs
         let inode = root_inode.create(app.as_str()).unwrap();
-        // write data to easy-fs
+        // We then need to create a file with the same name in `easy-fs`
+        // and write the ELF data to this file.
+        //
+        // This process is the same as copying a file from the Linux file system to our `easy-fs`.
         inode.write_at(0, all_data.as_slice());
     }
     // list apps
@@ -95,9 +103,11 @@ fn efs_test() -> std::io::Result<()> {
             .write(true)
             .create(true)
             .open("target/fs.img")?;
+        // 8192 block * BLOCK_SZ(512) = 4MiB
         f.set_len(8192 * 512).unwrap();
         f
     })));
+    //  Overwrites the data on the 4096 block, turning it into an initial file system with only one root directory.
     EasyFileSystem::create(block_file.clone(), 4096, 1);
     let efs = EasyFileSystem::open(block_file.clone());
     let root_inode = EasyFileSystem::root_inode(&efs);
