@@ -1,5 +1,6 @@
 [toolchain]
-profile = "minimal"
 # rustup run nightly rustc --version
 channel = "nightly-2022-08-28"
 components = ["rust-src", "llvm-tools-preview", "rustfmt", "clippy"]
+profile = "minimal"
+targets = ["riscv64gc-unknown-none-elf"]
