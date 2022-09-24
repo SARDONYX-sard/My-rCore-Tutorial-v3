@@ -1,12 +1,14 @@
 # Easy to forget abbreviations for RISC-V
 
+## Abbreviation
+
 - hart: hardware thread
-- sext: signed extension
+- sext: [sign expansion](#what-does-mean-sign-expansion)
 - rd: destination register
 - rs: source register
 - imm: immediate value
 
-## instruction
+## Instruction
 
 - auipc: Add Upper Immediate to PC
 
