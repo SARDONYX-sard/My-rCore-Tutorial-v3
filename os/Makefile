@@ -3,6 +3,7 @@ TARGET := riscv64gc-unknown-none-elf
 MODE := release
 KERNEL_ELF := target/$(TARGET)/$(MODE)/os
 KERNEL_BIN := $(KERNEL_ELF).bin
+FS_IMG := ../user/target/$(TARGET)/$(MODE)/fs.img
 DISASM_TMP := target/$(TARGET)/$(MODE)/asm
 
 # BOARD
@@ -71,14 +72,23 @@ objdump:
 	@nvim $(DISASM_TMP)
 	@rm $(DISASM_TMP)
 
+# FS_IMG: easy-fs image containing application ELFs packaged with easy-fs-fuse utility.
+
 # -m <memory size>: Phisical memory size (default: 128MiB)
 # -machine <name>: Virtual machine pc name
 # -nographic: CLI mode
+# -drive:
+# 	id=<disc name>
+# -device:
+# 	drive=x0: Hard disk x0 is connected to the virtual machine system as a block device on the VirtIO bus.
+# 	virtio-mmio-bus.0: The VirtIO bus is controlled via MMIO and the block device is number 0 in the bus.
 define QEMU_OPTIONS
 	-machine virt \
 	-nographic \
 	-bios $(BOOTLOADER) \
 	-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
+	-drive file=$(FS_IMG),if=none,format=raw,id=x0 \
+	-device virtio_blk-device,drive=x0,bus=virtio-mmio-bus.0
 endef
 
 run: build
