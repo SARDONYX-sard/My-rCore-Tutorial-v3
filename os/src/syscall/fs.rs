@@ -1,58 +1,66 @@
 //! File and filesystem-related syscalls
 
 use crate::fs::{open_file, OpenFlags};
-use crate::mm::{translated_byte_buffer, translated_str};
-use crate::sbi::console_getchar;
-use crate::task::{current_task, current_user_token, suspend_current_and_run_next};
+use crate::mm::{translated_byte_buffer, translated_str, UserBuffer};
+use crate::task::{current_task, current_user_token};
 
-const FD_STDIN: usize = 0;
-const FD_STDOUT: usize = 1;
-
-/// write `buf` of length `len`  to a file with `fd`
+/// Write the data in the buffer in memory to the file.
+///
+/// # Parameters
+/// -  `fd`: The file descriptor of the file to be written.
+/// - `buffer`: indicates the start address of the in-memory buffer.
+/// - `len`: Length to write.
+///
+/// # Return
+/// Conditional branching.
+/// - If an error occurs
+///   (e.g. If you put a file descriptor number in `fd` that does not exist in the file descriptor table) => -1
+/// - otherwise => The length of the successful write.
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
-    // TODO: Check security of incoming arguments
-
-    match fd {
-        FD_STDOUT => {
-            // Convert the buffer pointed to by the application's virtual address
-            // into a vector of byte array slices pointed to by the kernel's virtual address.
-            let buffers = translated_byte_buffer(current_user_token(), buf, len);
-            for buffer in buffers {
-                print!("{}", core::str::from_utf8(buffer).unwrap());
-            }
-            len as isize
-        }
-        _ => {
-            panic!("Unsupported fd in sys_write!");
-        }
+    let token = current_user_token();
+    let task = current_task().unwrap();
+    let inner = task.inner_exclusive_access();
+    if fd >= inner.fd_table.len() {
+        return -1;
+    }
+    if let Some(file) = &inner.fd_table[fd] {
+        let file = file.clone();
+        // release current task TCB(TaskControlBlock) manually to avoid multi-borrow
+        drop(inner);
+        // Convert the buffer pointed to by the application's virtual address
+        // into a vector of byte array slices pointed to by the kernel's virtual address.
+        file.write(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
+    } else {
+        -1
     }
 }
 
-/// read `buf` of length `len`  to a file with `fd`
+/// Reads a piece of content from a file into a buffer.
+///
+/// # parameters
+/// - `fd`: File descriptor of the file to read.
+/// - `buffer`: The start address of the in-memory buffer.
+/// - `len`: Length to read.
+///
+/// # Return
+/// Conditional branching.
+/// - If an error occurs
+///   (e.g. If you put a file descriptor number in `fd` that does not exist in the file descriptor table) => -1
+/// - otherwise => number of bytes actually read.
 pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
-    match fd {
-        FD_STDIN => {
-            assert_eq!(len, 1, "Only support len = 1 in sys_read!");
-            let mut c: usize;
-            loop {
-                c = console_getchar();
-                if c == 0 {
-                    suspend_current_and_run_next();
-                    continue;
-                } else {
-                    break;
-                }
-            }
-            let ch = c as u8;
-            let mut buffers = translated_byte_buffer(current_user_token(), buf, len);
-            unsafe {
-                buffers[0].as_mut_ptr().write_volatile(ch);
-            }
-            1
-        }
-        _ => {
-            panic!("Unsupported fd in sys_read!");
-        }
+    let token = current_user_token();
+    let task = current_task().unwrap();
+    let inner = task.inner_exclusive_access();
+    if fd >= inner.fd_table.len() {
+        return -1;
+    }
+    if let Some(file) = &inner.fd_table[fd] {
+        let file = file.clone();
+        // release current task TCB(TaskControlBlock) manually to avoid multi-borrow
+        drop(inner);
+        file.read(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
+    } else {
+        -1
     }
 }
 
