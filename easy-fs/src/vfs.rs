@@ -165,12 +165,32 @@ impl Inode {
     }
 
     /// Read data from current inode
+    ///
+    /// # parameters
+    ///
+    /// - `offset`: The starting point of the block to be read.
+    /// - `buf`: Location to store read data.
+    ///
+    /// # Return
+    ///  Conditional branching.
+    /// - If offset is greater than `offset + buf length` or  `self.size(file/dir size)` => 0
+    /// - otherwise => Length of data finished reading (`buf` same as length of copied data)
     pub fn read_at(&self, offset: usize, buf: &mut [u8]) -> usize {
         let _fs = self.fs.lock();
         self.read_disk_inode(|disk_inode| disk_inode.read_at(offset, buf, &self.block_device))
     }
 
     /// Write data to current inode
+    ///
+    /// # parameters
+    /// - `offset`: The starting point of the block to be read.
+    /// - `buf`: Data to be written.
+    ///
+    /// # Panic
+    /// 1st argument `offset` is greater than `offset + buf length` or  `self.size(file/dir size)`
+    ///
+    /// # Return
+    /// Length of data that has been written
     pub fn write_at(&self, offset: usize, buf: &[u8]) -> usize {
         let mut fs = self.fs.lock();
         let size = self.modify_disk_inode(|disk_inode| {

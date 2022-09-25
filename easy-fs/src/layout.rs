@@ -392,6 +392,18 @@ impl DiskInode {
     }
 
     /// Read data from current disk inode
+    ///
+    /// # parameters
+    ///
+    /// - `offset`: The starting point of the block to be read.
+    /// - `buf`: Location to store read data.
+    /// - `block_device`: The structure in which the methods of the `File` trait are implemented.
+    ///                   The `read` method defined in the `FIle` trait is read inside the function.
+    ///
+    /// # Return
+    ///  Conditional branching.
+    /// - If offset is greater than `offset + buf length` or  `self.size(file/dir size)` => 0
+    /// - otherwise => Length of data finished reading (`buf` same as length of copied data)
     pub fn read_at(
         &self,
         offset: usize,
@@ -407,6 +419,11 @@ impl DiskInode {
         let mut read_size = 0usize;
         loop {
             // calculate end of current block
+            //
+            // # Example
+            // 5000 / 512 = 9
+            // 9 + 1 =10
+            // 10 * 512 = 5120
             let mut end_current_block = (start / BLOCK_SZ + 1) * BLOCK_SZ;
             end_current_block = end_current_block.min(end);
             // read and update read size
@@ -418,6 +435,8 @@ impl DiskInode {
             )
             .lock()
             .read(0, |data_block: &DataBlock| {
+                // data_block is 1Block.
+                // `start % BLOCK_SZ` index of 1Block
                 let src = &data_block[start % BLOCK_SZ..start % BLOCK_SZ + block_read_size];
                 dst.copy_from_slice(src);
             });
@@ -434,6 +453,17 @@ impl DiskInode {
 
     /// Write data into current disk inode
     /// size must be adjusted properly beforehand
+    ///
+    /// # parameters
+    /// - `offset`: The starting point of the block to be read.
+    /// - `buf`: Data to be written.
+    /// - `block_device`: The structure in which the methods of the `File` trait are implemented.
+    ///                   The `read` method defined in the `FIle` trait is read inside the function.
+    /// # Panic
+    /// 1st argument `offset` is greater than `offset + buf length` or  `self.size(file/dir size)`
+    ///
+    /// # Return
+    /// Length of data that has been written
     pub fn write_at(
         &mut self,
         offset: usize,
