@@ -388,3 +388,22 @@ pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
         .unwrap()
         .get_mut()
 }
+
+pub struct UserBuffer {
+    pub buffers: Vec<&'static mut [u8]>,
+}
+
+impl UserBuffer {
+    pub fn new(buffers: Vec<&'static mut [u8]>) -> Self {
+        Self { buffers }
+    }
+
+    /// Get the length of the u8 array pointed to by each pointer referenced by Vector(UserBuffer.buffer).
+    pub fn len(&self) -> usize {
+        let mut total = 0;
+        for b in self.buffers.iter() {
+            total += b.len();
+        }
+        total
+    }
+}
