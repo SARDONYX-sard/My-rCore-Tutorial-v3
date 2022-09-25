@@ -119,6 +119,10 @@ pub fn sys_close(fd: usize) -> isize {
     if inner.fd_table[fd].is_none() {
         return -1;
     }
+    // Simply change the entry in the process control block corresponding to the file descriptor table
+    // to None to indicate that it is free, which also destroys the internal reference counter type Arc,
+    // which reduces the reference count of the file, and automatically regenerates the resource occupied
+    // by the file when the reference count reaches zero.
     inner.fd_table[fd].take();
     0
 }
