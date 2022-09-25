@@ -44,6 +44,7 @@ lazy_static! {
     };
 }
 
+/// Receive a list of files from `ROOT_INODE` and output them in order to standard output.
 pub fn list_apps() {
     let apps = ROOT_INODE.ls();
     println!("/**** APPS *****");
