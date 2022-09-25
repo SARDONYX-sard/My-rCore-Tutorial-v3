@@ -5,9 +5,10 @@
 //! `UPSafeCell<OSInodeInner>` -> `OSInode`: for static `ROOT_INODE`,we
 //! need to wrap `OSInodeInner` into `UPSafeCell`
 use super::File;
-use crate::sync::UPSafeCell;
+use crate::{drivers::BLOCK_DEVICE, sync::UPSafeCell};
 use alloc::sync::Arc;
-use easy_fs::Inode;
+use easy_fs::{EasyFileSystem, Inode};
+use lazy_static::*;
 
 pub struct OSInode {
     /// Whether the file is allowed to be read by `sys_read` or not.
@@ -33,6 +34,78 @@ impl OSInode {
             writable,
             inner: unsafe { UPSafeCell::new(OSInodeInner { offset: 0, inode }) },
         }
+    }
+}
+
+lazy_static! {
+    pub static ref ROOT_INODE: Arc<Inode> = {
+        let efs = EasyFileSystem::open(BLOCK_DEVICE.clone());
+        Arc::new(EasyFileSystem::root_inode(&efs))
+    };
+}
+
+pub fn list_apps() {
+    let apps = ROOT_INODE.ls();
+    println!("/**** APPS *****");
+    for app in apps.iter() {
+        println!("{}", app);
+    }
+    println!("***************/");
+}
+
+bitflags! {
+    /// FIle open mode
+    pub struct OpenFlags: u32 {
+        ///  read-only mode
+        const RDONLY = 0;
+        ///  write-only mode
+        const WRONLY = 1 << 0;
+        /// read & write
+        const RDWR = 1 << 1;
+        /// Create
+        const CREATE  = 1 <<9;
+        /// clear and the size set back to zero
+        const TRUNC = 1 <<10;
+    }
+}
+
+impl OpenFlags {
+    /// Do not check validity for simplicity
+    /// # Return
+    /// (readable, writable)
+    pub fn read_write(&self) -> (bool, bool) {
+        if self.is_empty() {
+            (true, false)
+        } else if self.contains(Self::WRONLY) {
+            (false, true)
+        } else {
+            (true, true)
+        }
+    }
+}
+
+/// When it is desired to create a file with the same name as an existing file,
+/// the contents of the file are cleared.
+pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
+    let (readable, writable) = flags.read_write();
+    if flags.contains(OpenFlags::CREATE) {
+        if let Some(inode) = ROOT_INODE.find(name) {
+            // clear size
+            inode.clear();
+            Some(Arc::new(OSInode::new(readable, writable, inode)))
+        } else {
+            // create file
+            ROOT_INODE
+                .create(name)
+                .map(|inode| Arc::new(OSInode::new(readable, writable, inode)))
+        }
+    } else {
+        ROOT_INODE.find(name).map(|inode| {
+            if flags.contains(OpenFlags::TRUNC) {
+                inode.clear();
+            }
+            Arc::new(OSInode::new(readable, writable, inode))
+        })
     }
 }
 
