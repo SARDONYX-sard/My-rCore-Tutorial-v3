@@ -3,8 +3,9 @@ TARGET := riscv64gc-unknown-none-elf
 MODE := release
 KERNEL_ELF := target/$(TARGET)/$(MODE)/os
 KERNEL_BIN := $(KERNEL_ELF).bin
-FS_IMG := ../user/target/$(TARGET)/$(MODE)/fs.img
 DISASM_TMP := target/$(TARGET)/$(MODE)/asm
+FS_IMG := ../user/target/$(TARGET)/$(MODE)/fs.img
+APPS := ../user/src/bin/*
 
 # BOARD
 BOARD ?= qemu
@@ -32,9 +33,9 @@ DISASM ?= -x
 # Run usertests or usershell
 TEST ?=
 
-build: env $(KERNEL_BIN)
+build: env $(KERNEL_BIN) fs-img
 
-build-ci: $(KERNEL_BIN)
+build-ci: $(KERNEL_BIN) fs-img
 
 env:
 	(rustup target list | grep "riscv64gc-unknown-none-elf (installed)") || rustup target add $(TARGET)
@@ -44,6 +45,13 @@ env:
 
 $(KERNEL_BIN): kernel
 	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
+
+fs-img: $(APPS)
+	@cd ../user && make build TEST=$(TEST)
+	@rm -f $(FS_IMG)
+	@cd ../easy-fs-fuse && cargo run --release -- -s ../user/src/bin/ -t ../user/targt/$(TARGET)/$(MODE)/
+
+$(APPS):
 
 kernel:
 	@cd ../user && make build TEST=$(TEST)
