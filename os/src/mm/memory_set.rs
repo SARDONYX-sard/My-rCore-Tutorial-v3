@@ -45,6 +45,13 @@ lazy_static! {
         Arc::new(unsafe { UPSafeCell::new(MemorySet::new_kernel()) });
 }
 
+/// Get the physical page number of the root node of that application.
+///
+/// Physical page number(SV39: 44bit)
+pub fn kernel_token() -> usize {
+    KERNEL_SPACE.exclusive_access().token()
+}
+
 /// Expressing the address space.
 ///
 /// The address space is a series of associated,
