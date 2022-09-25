@@ -84,11 +84,11 @@ impl TaskControlBlockInner {
     pub fn is_zombie(&self) -> bool {
         self.get_status() == TaskStatus::Zombie
     }
-    /// Search for and assign file descriptors.
+    /// Search `self.fd_table` from the beginning to find `None` in the array.
     ///
     /// # Return
     /// Conditional branching.
-    /// - If something is found in `self.fd_table` => index of `self.fd_table`
+    /// - Search `self.fd_table` from the beginning, and if `None` is already there => index of `None` found
     /// - If nothing found => push `None` to `self.fd_table` and index the last index of `self.fd_table`
     pub fn alloc_fd(&mut self) -> usize {
         if let Some(fd) = (0..self.fd_table.len()).find(|fd| self.fd_table[*fd].is_none()) {
