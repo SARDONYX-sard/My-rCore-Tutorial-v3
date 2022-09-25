@@ -289,6 +289,8 @@ impl PageTable {
         self.find_pte(vpn).map(|pte| *pte)
     }
 
+    /// `PageTableEntry` with the physical address of the terminal node
+    /// from the argument virtual address, or `None` if not found.
     pub fn translate_va(&self, va: VirtAddr) -> Option<PhysAddr> {
         self.find_pte(va.clone().floor()).map(|pte| {
             //println!("translate_va:va = {:?}", va);

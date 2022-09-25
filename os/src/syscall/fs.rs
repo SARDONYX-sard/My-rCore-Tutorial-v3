@@ -7,7 +7,7 @@ use crate::task::{current_user_token, suspend_current_and_run_next};
 const FD_STDIN: usize = 0;
 const FD_STDOUT: usize = 1;
 
-/// write buf of length `len`  to a file with `fd`
+/// write `buf` of length `len`  to a file with `fd`
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     // TODO: Check security of incoming arguments
 
@@ -27,6 +27,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     }
 }
 
+/// read `buf` of length `len`  to a file with `fd`
 pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
     match fd {
         FD_STDIN => {
