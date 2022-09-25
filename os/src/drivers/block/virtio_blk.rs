@@ -8,6 +8,7 @@ use easy_fs::BlockDevice;
 use lazy_static::*;
 use virtio_drivers::{Hal, VirtIOBlk, VirtIOHeader};
 
+/// Starting virtual address of Memory Mapped Input/Output(MMIO)
 const VIRTIO0: usize = 0x10001000;
 
 pub struct VirtIOBlock(UPSafeCell<VirtIOBlk<'static, VirtioHal>>);
