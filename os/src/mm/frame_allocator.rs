@@ -171,7 +171,7 @@ pub fn frame_alloc() -> Option<FrameTracker> {
 ///
 /// There is no need to use this function manually
 /// since it is called automatically by `Drop` trait implemented in `FrameTracker`.
-fn frame_dealloc(ppn: PhysPageNum) {
+pub fn frame_dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }
 
