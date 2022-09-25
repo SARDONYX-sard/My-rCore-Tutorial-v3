@@ -49,7 +49,7 @@ $(KERNEL_BIN): kernel
 fs-img: $(APPS)
 	@cd ../user && make build TEST=$(TEST)
 	@rm -f $(FS_IMG)
-	@cd ../easy-fs-fuse && cargo run --release -- -s ../user/src/bin/ -t ../user/targt/$(TARGET)/$(MODE)/
+	@cd ../easy-fs-fuse && cargo run --release -- -s ../user/src/bin/ -t ../user/target/$(TARGET)/$(MODE)/
 
 $(APPS):
 
