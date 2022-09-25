@@ -36,6 +36,7 @@ mod board;
 #[macro_use]
 mod console;
 mod config;
+mod drivers;
 mod fs;
 mod lang_items;
 mod loader;
