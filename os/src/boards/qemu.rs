@@ -10,6 +10,8 @@ pub const MMIO: &[(usize, usize)] = &[
     (0x0010_1000, 0x00_1000), // Virtio Block in virt machine
 ];
 
+pub type BlockDeviceImpl = crate::drivers::block::VirtIOBlock;
+
 //ref:: https://github.com/andre-richter/qemu-exit
 use core::arch::asm;
 
