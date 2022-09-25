@@ -82,6 +82,7 @@
     "unmapping",
     "userspace",
     "Virt",
+    "virtio",
     "waitpid",
     "WRONLY",
     "xstate"
