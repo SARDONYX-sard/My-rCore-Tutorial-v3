@@ -11,6 +11,8 @@ use alloc::vec::Vec;
 use easy_fs::{EasyFileSystem, Inode};
 use lazy_static::*;
 
+/// A wrapper around a filesystem inode
+/// to implement File trait atop
 pub struct OSInode {
     /// Whether the file is allowed to be read by `sys_read` or not.
     readable: bool,
@@ -20,6 +22,7 @@ pub struct OSInode {
     inner: UPSafeCell<OSInodeInner>,
 }
 
+/// The OS inode inner in 'UPSafeCell'
 pub struct OSInodeInner {
     ///
     ///
@@ -82,9 +85,9 @@ bitflags! {
         /// read & write
         const RDWR = 1 << 1;
         /// Create
-        const CREATE  = 1 <<9;
+        const CREATE = 1 << 9;
         /// clear and the size set back to zero
-        const TRUNC = 1 <<10;
+        const TRUNC = 1 << 10;
     }
 }
 
@@ -142,7 +145,9 @@ impl File for OSInode {
         let mut total_read_size = 0usize;
         for slice in buf.buffers.iter_mut() {
             let read_size = inner.inode.read_at(inner.offset, slice);
-            assert_eq!(read_size, slice.len());
+            if read_size == 0 {
+                break;
+            }
             inner.offset += read_size;
             total_read_size += read_size;
         }
