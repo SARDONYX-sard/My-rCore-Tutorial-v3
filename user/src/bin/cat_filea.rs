@@ -11,7 +11,7 @@ use user_lib::{close, open, read, OpenFlags};
 pub fn main() -> i32 {
     let fd = open("filea\0", OpenFlags::RDONLY);
     if fd == -1 {
-        panic!("Error occured when opening file");
+        panic!("Error occurred when opening file");
     }
     let fd = fd as usize;
     let mut buf = [0u8; 256];
