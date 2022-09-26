@@ -4,7 +4,7 @@ target = "riscv64gc-unknown-none-elf"
 [target.riscv64gc-unknown-none-elf]
 rustflags = ["-Clink-arg=-Tsrc/linker.ld"]
 
-# see: https://doc.rust-lang.org/cargo/reference/unstable.html#list-of-unstable-features
-[unstable]
-build-std-features = ["compiler-builtins-mem"]
-build-std = ["alloc", "core", "compiler_builtins"]
+# # see: https://doc.rust-lang.org/cargo/reference/unstable.html#list-of-unstable-features
+# [unstable]
+# build-std-features = ["compiler-builtins-mem"]
+# build-std = ["alloc", "core", "compiler_builtins"]
