@@ -14,7 +14,7 @@ extern crate bitflags;
 use buddy_system_allocator::LockedHeap;
 use syscall::*;
 
-const USER_HEAP_SIZE: usize = 16384; // 16KiB
+const USER_HEAP_SIZE: usize = 32768; // 32KiB
 
 static mut HEAP_SPACE: [u8; USER_HEAP_SIZE] = [0; USER_HEAP_SIZE];
 

@@ -36,8 +36,9 @@ mod board;
 #[macro_use]
 mod console;
 mod config;
+mod drivers;
+mod fs;
 mod lang_items;
-mod loader;
 mod mm;
 mod sbi;
 mod sync;
@@ -47,10 +48,6 @@ mod timer;
 pub mod trap;
 
 global_asm!(include_str!("entry.asm"));
-// The binary image file of the user's application
-// created by os/build.rs(the ELF format executable file minus the metadata. previous)
-// is linked to the kernel as a kernel data segment.
-global_asm!(include_str!("link_app.S")); //
 
 /// clear BSS segment
 fn clear_bss() {
@@ -73,13 +70,11 @@ fn rust_main() -> ! {
     println!("[kernel] Hello, world!");
     mm::init();
     mm::remap_test();
-    task::add_initproc();
-    println!("after initproc!");
     trap::init();
-    //trap::enable_interrupt();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    loader::list_apps();
+    fs::list_apps();
+    task::add_initproc();
     task::run_tasks();
     panic!("Unreachable in rust_main!");
 }
