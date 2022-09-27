@@ -13,9 +13,9 @@ CP := cp
 TEST ?=
 
 elf: $(APPS)
-	@[ -f $(TARGET_DIR)/initproc ] && rm -f $(TARGET_DIR)/initproc || echo ""
-	@[ -f $(TARGET_DIR)/initproc.bin ] && rm -f $(TARGET_DIR)/initproc.bin || echo ""
-	@[ -f $(TARGET_DIR)/initproc.d ] && rm -f $(TARGET_DIR)/initproc.d || echo ""
+ifeq ($(REBUILD), 1)
+	@cargo clean
+endif
 
 	@cargo build --release
 ifeq ($(TEST), 1)

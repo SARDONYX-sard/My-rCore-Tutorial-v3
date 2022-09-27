@@ -32,6 +32,8 @@ DISASM ?= -x
 
 # Run usertests or usershell
 TEST ?=
+# preprocess by `cargo clean` ON: 1/OFF: 0
+REBUILD ?=
 
 build: env $(KERNEL_BIN) fs-img
 
@@ -47,14 +49,17 @@ $(KERNEL_BIN): kernel
 	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
 
 fs-img: $(APPS)
-	@cd ../user && make build TEST=$(TEST)
+	@cd ../user && make build TEST=$(TEST) REBUILD=$(REBUILD)
 	@rm -f $(FS_IMG)
 	@cd ../easy-fs-fuse && cargo run --release -- -s ../user/src/bin/ -t ../user/target/$(TARGET)/$(MODE)/
 
 $(APPS):
 
 kernel:
-	@cd ../user && make build TEST=$(TEST)
+ifeq ($(REBUILD), 1)
+	@cargo clean
+endif
+	@cd ../user && make build TEST=$(TEST) REBUILD=$(REBUILD)
 	@echo Platform: $(BOARD)
 	@cargo build $(MODE_ARG) --features "board_$(BOARD)"
 
