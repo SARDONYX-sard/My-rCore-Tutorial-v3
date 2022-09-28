@@ -281,3 +281,19 @@ pub fn sleep(period_ms: usize) {
         sys_yield();
     }
 }
+
+/// Open a pipe for the current process.
+///
+/// # Parameter
+/// - `pipe_fd`: Starting address of a usize array of length 2 in the application address space.
+///
+///   The kernel must write the file descriptors of the read and write sides of the pipe in order.
+///   The write side of the file descriptor is stored in the array.
+///
+/// # Return
+/// Conditional branching.
+/// - If there is an error => -1
+/// - Otherwise => a possible cause of error is that the address passed is an invalid one.
+pub fn pipe(pipe_fd: &mut [usize]) -> isize {
+    sys_pipe(pipe_fd)
+}
