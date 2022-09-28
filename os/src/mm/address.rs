@@ -440,6 +440,13 @@ impl StepByOne for VirtPageNum {
     }
 }
 
+impl StepByOne for PhysPageNum {
+    /// PhysicalPageNumber += 1
+    fn step(&mut self) {
+        self.0 += 1;
+    }
+}
+
 #[derive(Copy, Clone)]
 /// a simple range structure for type T
 pub struct SimpleRange<T>

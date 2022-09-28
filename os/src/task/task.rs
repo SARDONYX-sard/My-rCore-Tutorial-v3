@@ -1,16 +1,17 @@
 //! Types related to task management
-use core::cell::RefMut;
-
 use super::pid::{pid_alloc, KernelStack, PidHandle};
 use super::TaskContext;
 use crate::config::TRAP_CONTEXT;
+use crate::fs::{File, Stdin, Stdout};
 use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::sync::UPSafeCell;
 use crate::trap::{trap_handler, TrapContext};
 use alloc::sync::{Arc, Weak};
+use alloc::vec;
 use alloc::vec::Vec;
+use core::cell::RefMut;
 
-/// task control block structure
+/// A structure of the components of a single task
 pub struct TaskControlBlock {
     // immutable
     pub pid: PidHandle,
@@ -45,6 +46,21 @@ pub struct TaskControlBlockInner {
     /// with an error, its `exit_code` is stored in its task control block by the kernel and waits
     /// for the parent process to retrieve its PID and exit code while retrieving resources via `waitpid`.
     pub exit_code: i32,
+    /// File descriptor table
+    ///
+    /// To support file process management
+    ///
+    /// ## Option
+    /// Whether the file descriptor is currently free or not.
+    /// - Some=> occupied
+    /// - None => free
+    ///
+    /// ## Arc
+    /// Provides the ability to share references.
+    /// - Multiple processes may share the same file for reading and writing.
+    /// - The contents wrapped in `Arc` are placed on the kernel heap, not the stack,
+    ///   so there is no need to specify the size at compile time.
+    pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
 }
 
 impl TaskControlBlockInner {
@@ -67,6 +83,20 @@ impl TaskControlBlockInner {
     /// Is TaskStatus zombie?
     pub fn is_zombie(&self) -> bool {
         self.get_status() == TaskStatus::Zombie
+    }
+    /// Search `self.fd_table` from the beginning to find `None` in the array.
+    ///
+    /// # Return
+    /// Conditional branching.
+    /// - Search `self.fd_table` from the beginning, and if `None` is already there => index of `None` found
+    /// - If nothing found => push `None` to `self.fd_table` and index the last index of `self.fd_table`
+    pub fn alloc_fd(&mut self) -> usize {
+        if let Some(fd) = (0..self.fd_table.len()).find(|fd| self.fd_table[*fd].is_none()) {
+            fd
+        } else {
+            self.fd_table.push(None);
+            self.fd_table.len() - 1
+        }
     }
 }
 
@@ -100,6 +130,14 @@ impl TaskControlBlock {
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
+                    fd_table: vec![
+                        // 0 -> stdin
+                        Some(Arc::new(Stdin)),
+                        // 1 -> stdin
+                        Some(Arc::new(Stdout)),
+                        // 2 -> stderr
+                        Some(Arc::new(Stdout)),
+                    ],
                 })
             },
         };
@@ -154,6 +192,16 @@ impl TaskControlBlock {
         let pid_handle = pid_alloc();
         let kernel_stack = KernelStack::new(&pid_handle);
         let kernel_stack_top = kernel_stack.get_top();
+        // copy fd table
+        let mut new_fd_table: Vec<Option<Arc<dyn File + Send + Sync>>> = Vec::new();
+        for fd in parent_inner.fd_table.iter() {
+            //? Can't we just push without using `if let`?
+            if let Some(fd) = fd {
+                new_fd_table.push(Some(fd.clone()));
+            } else {
+                new_fd_table.push(None);
+            }
+        }
         let task_control_block = Arc::new(TaskControlBlock {
             pid: pid_handle,
             kernel_stack,
@@ -167,6 +215,7 @@ impl TaskControlBlock {
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
+                    fd_table: new_fd_table,
                 })
             },
         });

@@ -13,6 +13,10 @@ CP := cp
 TEST ?=
 
 elf: $(APPS)
+ifeq ($(REBUILD), 1)
+	@cargo clean
+endif
+
 	@cargo build --release
 ifeq ($(TEST), 1)
 	@$(CP) $(TARGET_DIR)/usertests $(TARGET_DIR)/initproc

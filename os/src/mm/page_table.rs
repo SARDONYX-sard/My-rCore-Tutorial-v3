@@ -289,6 +289,8 @@ impl PageTable {
         self.find_pte(vpn).map(|pte| *pte)
     }
 
+    /// `PageTableEntry` with the physical address of the terminal node
+    /// from the argument virtual address, or `None` if not found.
     pub fn translate_va(&self, va: VirtAddr) -> Option<PhysAddr> {
         self.find_pte(va.clone().floor()).map(|pte| {
             //println!("translate_va:va = {:?}", va);
@@ -387,4 +389,23 @@ pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
         .translate_va(VirtAddr::from(va))
         .unwrap()
         .get_mut()
+}
+
+pub struct UserBuffer {
+    pub buffers: Vec<&'static mut [u8]>,
+}
+
+impl UserBuffer {
+    pub fn new(buffers: Vec<&'static mut [u8]>) -> Self {
+        Self { buffers }
+    }
+
+    /// Get the length of the u8 array pointed to by each pointer referenced by Vector(UserBuffer.buffer).
+    pub fn len(&self) -> usize {
+        let mut total = 0;
+        for b in self.buffers.iter() {
+            total += b.len();
+        }
+        total
+    }
 }

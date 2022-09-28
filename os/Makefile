@@ -4,6 +4,8 @@ MODE := release
 KERNEL_ELF := target/$(TARGET)/$(MODE)/os
 KERNEL_BIN := $(KERNEL_ELF).bin
 DISASM_TMP := target/$(TARGET)/$(MODE)/asm
+FS_IMG := ../user/target/$(TARGET)/$(MODE)/fs.img
+APPS := ../user/src/bin/*
 
 # BOARD
 BOARD ?= qemu
@@ -30,8 +32,12 @@ DISASM ?= -x
 
 # Run usertests or usershell
 TEST ?=
+# preprocess by `cargo clean` ON: 1/OFF: 0
+REBUILD ?=
 
-build: env $(KERNEL_BIN)
+build: env $(KERNEL_BIN) fs-img
+
+build-ci: $(KERNEL_BIN) fs-img
 
 env:
 	(rustup target list | grep "riscv64gc-unknown-none-elf (installed)") || rustup target add $(TARGET)
@@ -42,8 +48,18 @@ env:
 $(KERNEL_BIN): kernel
 	@$(OBJCOPY) $(KERNEL_ELF) --strip-all -O binary $@
 
+fs-img: $(APPS)
+	@cd ../user && make build TEST=$(TEST) REBUILD=$(REBUILD)
+	@rm -f $(FS_IMG)
+	@cd ../easy-fs-fuse && cargo run --release -- -s ../user/src/bin/ -t ../user/target/$(TARGET)/$(MODE)/
+
+$(APPS):
+
 kernel:
-	@cd ../user && make build TEST=$(TEST)
+ifeq ($(REBUILD), 1)
+	@cargo clean
+endif
+	@cd ../user && make build TEST=$(TEST) REBUILD=$(REBUILD)
 	@echo Platform: $(BOARD)
 	@cargo build $(MODE_ARG) --features "board_$(BOARD)"
 
@@ -69,14 +85,23 @@ objdump:
 	@nvim $(DISASM_TMP)
 	@rm $(DISASM_TMP)
 
+# FS_IMG: easy-fs image containing application ELFs packaged with easy-fs-fuse utility.
+
 # -m <memory size>: Phisical memory size (default: 128MiB)
 # -machine <name>: Virtual machine pc name
 # -nographic: CLI mode
+# -drive:
+# 	id=<disc name>
+# -device:
+# 	drive=x0: Hard disk x0 is connected to the virtual machine system as a block device on the VirtIO bus.
+# 	virtio-mmio-bus.0: The VirtIO bus is controlled via MMIO and the block device is number 0 in the bus.
 define QEMU_OPTIONS
 	-machine virt \
 	-nographic \
 	-bios $(BOOTLOADER) \
-	-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA)
+	-device loader,file=$(KERNEL_BIN),addr=$(KERNEL_ENTRY_PA) \
+	-drive file=$(FS_IMG),if=none,format=raw,id=x0 \
+	-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0
 endef
 
 run: build
