@@ -16,7 +16,7 @@ RISC-V OS written in Rust
 
 - [x] Process
 
-- [ ] File System
+- [x] File System
 
 - [ ] InterProcess Communication and I/O Redirection
 
