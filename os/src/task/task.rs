@@ -3,9 +3,10 @@ use super::pid::{pid_alloc, KernelStack, PidHandle};
 use super::TaskContext;
 use crate::config::TRAP_CONTEXT;
 use crate::fs::{File, Stdin, Stdout};
-use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
+use crate::mm::{translated_refmut, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::sync::UPSafeCell;
 use crate::trap::{trap_handler, TrapContext};
+use alloc::string::String;
 use alloc::sync::{Arc, Weak};
 use alloc::vec;
 use alloc::vec::Vec;
@@ -153,13 +154,73 @@ impl TaskControlBlock {
         task_control_block
     }
 
-    pub fn exec(&self, elf_data: &[u8]) {
+    /// execute elf
+    ///
+    /// # Parameters
+    /// - `elf_data`: elf
+    /// - `args`: command arguments
+    pub fn exec(&self, elf_data: &[u8], args: Vec<String>) {
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
+        let (memory_set, mut user_sp, entry_point) = MemorySet::from_elf(elf_data);
         let trap_cx_ppn = memory_set
             .translate(VirtAddr::from(TRAP_CONTEXT).into())
             .unwrap()
             .ppn();
+
+        // push arguments on user stack
+        // args: ptr => [ptr of String, ptr of String...]
+        // Therefore, multiply by usize (assuming 64), the size of the pointer,
+        // to calculate the size of the pointer array (Vec) to be allocated on the stack.
+        user_sp -= (args.len() + 1) * core::mem::size_of::<usize>();
+        let argv_base = user_sp;
+        // With argv_base as the starting address, get the physical address of each pointer
+        // in the argv array and put it in Vector
+        let mut argv: Vec<_> = (0..=args.len())
+            .map(|arg| {
+                translated_refmut(
+                    memory_set.token(),
+                    (argv_base + arg * core::mem::size_of::<usize>()) as *mut usize,
+                )
+            })
+            .collect();
+
+        // Example(command aa bb)
+        //
+        // | HighAddr  |  byte |
+        // |-----------|-------|<-- user_sp(original)
+        // |     0     | 8byte |
+        // |  argv[1]  | 8byte |
+        // |  argv[0]  | 8byte |___ argv_base
+        // |   '\0'    | 1byte |
+        // |    'a'    | 1byte |
+        // |    'a'    | 1byte |
+        // |   '\0'    | 1byte |
+        // |    'b'    | 1byte |
+        // |    'b'    | 1byte |
+        // | Alignment |  byte |
+        // |-----------|-------|<-- user_sp(now)
+        // |  LowAddr  |       |
+
+        // Actually load arguments onto the stack.
+        *argv[args.len()] = 0;
+        for i in 0..args.len() {
+            // Shift the stack pointer by the length of the argument(command char)
+            user_sp -= args[i].len() + 1;
+            *argv[i] = user_sp;
+            let mut p = user_sp;
+            for c in args[i].as_bytes() {
+                // Put 8 bits of data (1 character) into the current stack pointer(p).
+                *translated_refmut(memory_set.token(), p as *mut u8) = *c;
+                p += 1;
+            }
+            // Put 0(ASCII '\0') into end of one command string
+            *translated_refmut(memory_set.token(), p as *mut u8) = 0;
+        }
+        // make the user_sp aligned to 8byte for k210 platform
+        // Due to the different lengths of the command line arguments, pushing user_sp will likely
+        // not align to 8 bytes and will cause an unaligned access exception when accessing the user
+        // stack, so alignment adjustments should be made.
+        user_sp -= user_sp % core::mem::size_of::<usize>();
 
         // **** access inner exclusively
         let mut inner = self.inner_exclusive_access();
@@ -168,14 +229,18 @@ impl TaskControlBlock {
         // update trap_cx ppn
         inner.trap_cx_ppn = trap_cx_ppn;
         // initialize trap_cx
-        let trap_cx = inner.get_trap_cx();
-        *trap_cx = TrapContext::app_init_context(
+        let mut trap_cx = TrapContext::app_init_context(
             entry_point,
             user_sp,
             KERNEL_SPACE.exclusive_access().token(),
             self.kernel_stack.get_top(),
             trap_handler as usize,
         );
+        // x10 => user application 1st argument(a0)
+        trap_cx.x[10] = args.len();
+        // x11 => user application 2nd argument(a1)
+        trap_cx.x[11] = argv_base;
+        *inner.get_trap_cx() = trap_cx;
         // **** stop exclusively accessing inner automatically
     }
 

@@ -190,15 +190,19 @@ pub fn sys_fork() -> isize {
 ///
 /// # Parameter
 /// - `path`: Name of the executable to load.
+/// - `args`: Array of starting addresses for command line parameter strings.
 ///
 /// # Return
 /// Conditional branching.
 /// - If there is an error => -1 (e.g. no executable file with matching name found)
-/// - Otherwise => do not return.
-pub fn sys_exec(path: &str) -> isize {
+/// - Otherwise => The length of `args` array
+pub fn sys_exec(path: &str, args: &[*const u8]) -> isize {
     // Since path as type `&str` is a fat pointer that contains both the starting address and length information,
     // only the starting address is passed to the kernel using `as_ptr()` when making system calls.
-    syscall(SYSCALL_EXEC, [path.as_ptr() as usize, 0, 0])
+    syscall(
+        SYSCALL_EXEC,
+        [path.as_ptr() as usize, args.as_ptr() as usize, 0],
+    )
 }
 
 /// The current process waits for a child process to become a zombie process, collects all resources,

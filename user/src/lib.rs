@@ -3,6 +3,8 @@
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 
+extern crate alloc;
+
 #[macro_use]
 pub mod console;
 mod lang_items;
@@ -11,6 +13,7 @@ mod syscall;
 #[macro_use]
 extern crate bitflags;
 
+use alloc::vec::Vec;
 use buddy_system_allocator::LockedHeap;
 use syscall::*;
 
@@ -28,10 +31,30 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub extern "C" fn _start() -> ! {
+pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
     unsafe {
         HEAP.lock()
             .init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
+    }
+    // command arguments str
+    let mut v: Vec<&'static str> = Vec::new();
+    for i in 0..argc {
+        // Get the starting address of the command argument string from the 1st address of the argv array.
+        let str_start =
+            unsafe { ((argv + i * core::mem::size_of::<usize>()) as *const usize).read_volatile() };
+        // Look for the 0 that represents the end of the command arg you put in os/task/task.rs
+        // to get the end address.
+        let len = (0usize..)
+            // null character('\0') is an integer constant with the value zero.
+            // - https://theasciicode.com.ar
+            .find(|i| unsafe { ((str_start + *i) as *const u8).read_volatile() == 0 })
+            .unwrap();
+        v.push(
+            core::str::from_utf8(unsafe {
+                core::slice::from_raw_parts(str_start as *const u8, len)
+            })
+            .unwrap(),
+        );
     }
     exit(main());
 }
@@ -210,13 +233,14 @@ pub fn fork() -> isize {
 ///
 /// # Parameter
 /// - `path`: Name of the executable to load.
+/// - `args`: Array of starting addresses for command line parameter strings.
 ///
 /// # Return
 /// Conditional branching.
 /// - If there is an error => -1 (e.g. no executable file with matching name found)
-/// - Otherwise => do not return.
-pub fn exec(path: &str) -> isize {
-    sys_exec(path)
+/// - Otherwise => The length of `args` array
+pub fn exec(path: &str, args: &[*const u8]) -> isize {
+    sys_exec(path, args)
 }
 
 /// Wait for any child process to exit.
