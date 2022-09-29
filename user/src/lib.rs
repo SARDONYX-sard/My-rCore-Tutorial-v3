@@ -227,14 +227,15 @@ pub fn exec(path: &str) -> isize {
 /// whether the waiting child process has terminated,
 /// thereby reducing waste of CPU resources.
 ///
-/// # Parameter
+/// # Parameters
 /// - `exit_code`: Address where the return value of the child process is stored.
 ///   If this address is 0, it means that there is no need to store the return value.
 ///
 /// # Return
 /// Conditional branching.
-/// - If not already stopped => call `yield_` & return 0
-/// - exit => The process ID of the terminated child process
+/// - If there is no child process to wait => -1
+/// - If none of the waiting child processes have exited => -2
+/// - Otherwise => The process ID of the terminated child process
 pub fn wait(exit_code: &mut i32) -> isize {
     loop {
         match sys_waitpid(-1, exit_code as *mut _) {
@@ -279,20 +280,4 @@ pub fn sleep(period_ms: usize) {
     while sys_get_time() < start + period_ms as isize {
         sys_yield();
     }
-}
-
-/// Open a pipe for the current process.
-///
-/// # Parameter
-/// - `pipe_fd`: Starting address of a usize array of length 2 in the application address space.
-///
-///   The kernel must write the file descriptors of the read and write sides of the pipe in order.
-///   The write side of the file descriptor is stored in the array.
-///
-/// # Return
-/// Conditional branching.
-/// - If there is an error => -1
-/// - Otherwise => a possible cause of error is that the address passed is an invalid one.
-pub fn pipe(pipe_fd: &mut [usize]) -> isize {
-    sys_pipe(pipe_fd)
 }
