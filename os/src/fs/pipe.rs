@@ -41,11 +41,11 @@ const RING_BUFFER_SIZE: usize = 32;
 #[derive(Copy, Clone, PartialEq, Eq)]
 enum RingBufferStatus {
     /// Buffer is full and cannot be written
-    FULL,
+    Full,
     /// Buffer is empty and cannot be read
-    EMPTY,
+    Empty,
     /// Any state other than `FULL` and `EMPTY`
-    NORMAL,
+    Normal,
 }
 
 /// circular queue
@@ -72,7 +72,7 @@ impl PipeRingBuffer {
             arr: [0; RING_BUFFER_SIZE],
             head: 0,
             tail: 0,
-            status: RingBufferStatus::EMPTY,
+            status: RingBufferStatus::Empty,
             write_end: None,
         }
     }
@@ -87,7 +87,7 @@ impl PipeRingBuffer {
     /// # Note
     /// Before calling this method, it must be ensured that the pipe buffer is not empty.
     pub fn write_byte(&mut self, byte: u8) {
-        self.status = RingBufferStatus::NORMAL;
+        self.status = RingBufferStatus::Normal;
         self.arr[self.tail] = byte;
         // Do not exceed the max number of ring buffers.
         // if RING_BUFFER_SIZE is 32
@@ -95,7 +95,7 @@ impl PipeRingBuffer {
         // 32 => 1
         self.tail = (self.tail + 1) % RING_BUFFER_SIZE;
         if self.tail == self.head {
-            self.status = RingBufferStatus::FULL;
+            self.status = RingBufferStatus::Full;
         }
     }
 
@@ -107,11 +107,11 @@ impl PipeRingBuffer {
     /// # Note
     /// Before calling this method, it must be ensured that the pipe buffer is not empty.
     pub fn read_byte(&mut self) -> u8 {
-        self.status = RingBufferStatus::NORMAL;
+        self.status = RingBufferStatus::Normal;
         let c = self.arr[self.head];
         self.head = (self.head + 1) % RING_BUFFER_SIZE;
         if self.head == self.tail {
-            self.status = RingBufferStatus::EMPTY;
+            self.status = RingBufferStatus::Empty;
         }
         c
     }
@@ -121,27 +121,23 @@ impl PipeRingBuffer {
         // If the header and tail are equal, it means that the queue is empty or full,
         // and the return value of available_read is very different in each case,
         // so it is necessary to first determine if the queue is empty.
-        if self.status == RingBufferStatus::EMPTY {
+        if self.status == RingBufferStatus::Empty {
             0
+        } else if self.tail > self.head {
+            self.tail - self.head
         } else {
-            if self.tail > self.head {
-                self.tail - self.head
-            } else {
-                self.tail + RING_BUFFER_SIZE - self.head
-            }
+            self.tail + RING_BUFFER_SIZE - self.head
         }
     }
 
     /// Calculates the number of characters still available in the pipe.
     pub fn available_write(&self) -> usize {
-        if self.status == RingBufferStatus::FULL {
+        if self.status == RingBufferStatus::Full {
             0
+        } else if self.tail > self.head {
+            self.tail - self.head
         } else {
-            if self.tail > self.head {
-                self.tail - self.head
-            } else {
-                RING_BUFFER_SIZE - self.available_read()
-            }
+            RING_BUFFER_SIZE - self.available_read()
         }
     }
 
@@ -183,7 +179,7 @@ impl File for Pipe {
     }
 
     fn read(&self, buf: crate::mm::UserBuffer) -> usize {
-        assert_eq!(self.readable, true);
+        assert!(self.readable);
         let mut buf_iter = buf.into_iter();
         let mut read_size = 0usize;
         loop {
@@ -212,7 +208,7 @@ impl File for Pipe {
     }
 
     fn write(&self, buf: crate::mm::UserBuffer) -> usize {
-        assert_eq!(self.writable, true);
+        assert!(self.writable);
         let mut buf_iter = buf.into_iter();
         let mut write_size = 0usize;
         loop {
