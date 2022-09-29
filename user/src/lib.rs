@@ -56,14 +56,14 @@ pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
             .unwrap(),
         );
     }
-    exit(main());
+    exit(main(argc, v.as_slice()));
 }
 
 // Use the main logic of the application in the bin directory as the main logic
 // even if there are main symbols in both the lib.rs and bin directories
 #[linkage = "weak"]
 #[no_mangle]
-fn main() -> i32 {
+fn main(_argc: usize, _argv: &[&str]) -> i32 {
     panic!("Cannot find main!")
 }
 
