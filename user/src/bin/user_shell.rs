@@ -17,6 +17,7 @@ const DL: u8 = 0x7fu8;
 const BS: u8 = 0x08u8;
 
 use alloc::string::String;
+use alloc::vec::Vec;
 use user_lib::console::getchar;
 use user_lib::{exec, fork, waitpid};
 
@@ -31,11 +32,39 @@ pub fn main() -> i32 {
             LF | CR => {
                 println!("");
                 if !line.is_empty() {
-                    line.push('\0');
+                    // The &str of the args after the split is the subInterval of the line that contains not \0 at the end.
+                    let args: Vec<_> = line.as_str().split(' ').collect();
+                    let mut args_copy: Vec<String> = args
+                        .iter()
+                        .map(|&arg| {
+                            let mut string = String::new();
+                            string.push_str(arg);
+                            string
+                        })
+                        .collect();
+                    // line is our input, and there is no not \0 in the middle.
+                    // When we pass it to the kernel, we can only pass the first address of the string,
+                    // so we must make sure it ends in \0.
+                    args_copy.iter_mut().for_each(|string| {
+                        // From there we use args_copy to copy the args string to the heap
+                        // and manually add the trailing \0.
+                        string.push('\0');
+                    });
+
+                    let mut args_addr: Vec<*const u8> =
+                        args_copy.iter().map(|arg| arg.as_ptr()).collect();
+                    // Each element of the args_addr vector represents the starting address of a command line argument string.
+                    //
+                    // It is the starting address of this vector that is passed to the kernel,
+                    // so in order for the kernel to get the number of command line arguments,
+                    // args_addr must end with a zero so that the kernel knows that the command line arguments have been taken
+                    // when it sees them.
+                    args_addr.push(0 as *const u8);
+
                     let pid = fork();
                     if pid == 0 {
                         // child process
-                        if exec(line.as_str()) == -1 {
+                        if exec(line.as_str(), args_addr.as_slice()) == -1 {
                             println!("Error when executing!");
                             return -4;
                         }
