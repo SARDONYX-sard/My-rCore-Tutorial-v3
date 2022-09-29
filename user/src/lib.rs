@@ -84,6 +84,20 @@ bitflags! {
     }
 }
 
+/// Duplicates the file descriptor reference passed in the argument.
+///
+/// # Parameter
+/// - `fd`: The file descriptor of a file already open in the process.
+///
+/// # Return
+/// Conditional branching.
+/// - if an error occurred => -1,
+/// - otherwise => the new file descriptor of the opened file is accessible.
+/// A possible cause of the error is that the passed fd does not correspond to a legal open file.
+pub fn dup(fd: usize) -> isize {
+    sys_dup(fd)
+}
+
 /// Opens a regular file and returns an accessible file descriptor.
 ///
 /// # Parameters
@@ -146,6 +160,22 @@ pub fn open(path: &str, flags: OpenFlags) -> isize {
 ///   - Error cause: the file descriptor passed may not correspond to the file being opened.
 pub fn close(fd: usize) -> isize {
     sys_close(fd)
+}
+
+/// Open a pipe for the current process.
+///
+/// # Parameter
+/// - `pipe_fd`: Starting address of a usize array of length 2 in the application address space.
+///
+///   The kernel must write the file descriptors of the read and write sides of the pipe in order.
+///   The write side of the file descriptor is stored in the array.
+///
+/// # Return
+/// Conditional branching.
+/// - If there is an error => -1
+/// - Otherwise => a possible cause of error is that the address passed is an invalid one.
+pub fn pipe(pipe_fd: &mut [usize]) -> isize {
+    sys_pipe(pipe_fd)
 }
 
 /// Reads a piece of content from a file into a buffer.
@@ -303,20 +333,4 @@ pub fn sleep(period_ms: usize) {
     while sys_get_time() < start + period_ms as isize {
         sys_yield();
     }
-}
-
-/// Open a pipe for the current process.
-///
-/// # Parameter
-/// - `pipe_fd`: Starting address of a usize array of length 2 in the application address space.
-///
-///   The kernel must write the file descriptors of the read and write sides of the pipe in order.
-///   The write side of the file descriptor is stored in the array.
-///
-/// # Return
-/// Conditional branching.
-/// - If there is an error => -1
-/// - Otherwise => a possible cause of error is that the address passed is an invalid one.
-pub fn pipe(pipe_fd: &mut [usize]) -> isize {
-    sys_pipe(pipe_fd)
 }
