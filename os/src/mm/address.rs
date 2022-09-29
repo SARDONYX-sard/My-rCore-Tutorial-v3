@@ -370,7 +370,7 @@ impl VirtPageNum {
 impl PhysAddr {
     /// Get the pointer of Physical Address.
     pub fn get_ref<T>(&self) -> &'static T {
-        unsafe { (self.0 as *mut T).as_ref().unwrap() }
+        unsafe { (self.0 as *const T).as_ref().unwrap() }
     }
 
     /// Get the mutable pointer of Physical Address.
