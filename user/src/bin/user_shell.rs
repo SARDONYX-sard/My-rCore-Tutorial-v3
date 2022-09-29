@@ -59,7 +59,7 @@ pub fn main() -> i32 {
                     // so in order for the kernel to get the number of command line arguments,
                     // args_addr must end with a zero so that the kernel knows that the command line arguments have been taken
                     // when it sees them.
-                    args_addr.push(0 as *const u8);
+                    args_addr.push(core::ptr::null::<u8>());
 
                     let pid = fork();
                     if pid == 0 {
