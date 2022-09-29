@@ -8,6 +8,7 @@ extern crate alloc;
 use alloc::string::String;
 use user_lib::{close, open, read, OpenFlags};
 
+#[no_mangle]
 /// Opens the file specified by the fileName command argument, reads buf (8bit * 16)
 /// and outputs the characters to standard output.
 ///
