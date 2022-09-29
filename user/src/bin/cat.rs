@@ -25,6 +25,9 @@ pub fn main(argc: usize, argv: &[&str]) -> i32 {
     let mut s = String::new();
     loop {
         let size = read(fd, &mut buf) as usize;
+        if size == 0 {
+            break;
+        }
         s.push_str(core::str::from_utf8(&buf[..size]).unwrap());
     }
     println!("{}", s);
