@@ -1,7 +1,8 @@
 use core::arch::asm;
-
+const SYSCALL_DUP: usize = 24;
 const SYSCALL_OPEN: usize = 56;
 const SYSCALL_CLOSE: usize = 57;
+const SYSCALL_PIPE: usize = 59;
 const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
@@ -11,7 +12,6 @@ const SYSCALL_GETPID: usize = 172;
 const SYSCALL_FORK: usize = 220;
 const SYSCALL_EXEC: usize = 221;
 const SYSCALL_WAITPID: usize = 260;
-const SYSCALL_PIPE: usize = 59;
 
 #[inline(always)]
 fn syscall(id: usize, args: [usize; 3]) -> isize {
@@ -28,6 +28,21 @@ fn syscall(id: usize, args: [usize; 3]) -> isize {
         );
     }
     ret
+}
+
+/// Duplicates the file descriptor reference passed in the argument.
+/// - syscall ID: 24
+///
+/// # Parameter
+/// - `fd`: The file descriptor of a file already open in the process.
+///
+/// # Return
+/// Conditional branching.
+/// - if an error occurred => -1,
+/// - otherwise => the new file descriptor of the opened file is accessible.
+/// A possible cause of the error is that the passed fd does not correspond to a legal open file.
+pub fn sys_dup(fd: usize) -> isize {
+    syscall(SYSCALL_DUP, [fd, 0, 0])
 }
 
 /// Opens a regular file and returns an accessible file descriptor.
@@ -77,6 +92,23 @@ pub fn sys_open(path: &str, flags: u32) -> isize {
 ///   - Error cause: the file descriptor passed may not correspond to the file being opened.
 pub fn sys_close(fd: usize) -> isize {
     syscall(SYSCALL_CLOSE, [fd, 0, 0])
+}
+
+/// Open a pipe for the current process.
+/// - syscall ID: 59
+///
+/// # Parameter
+/// - `pipe`: Starting address of a usize array of length 2 in the application address space.
+///
+///   The kernel must write the file descriptors of the read and write sides of the pipe in order.
+///   The write side of the file descriptor is stored in the array.
+///
+/// # Return
+/// Conditional branching.
+/// - If there is an error => -1
+/// - Otherwise => a possible cause of error is that the address passed is an invalid one.
+pub fn sys_pipe(pipe: &mut [usize]) -> isize {
+    syscall(SYSCALL_PIPE, [pipe.as_mut_ptr() as usize, 0, 0])
 }
 
 /// Reads a piece of content from a file into a buffer.
@@ -190,15 +222,19 @@ pub fn sys_fork() -> isize {
 ///
 /// # Parameter
 /// - `path`: Name of the executable to load.
+/// - `args`: Array of starting addresses for command line parameter strings.
 ///
 /// # Return
 /// Conditional branching.
 /// - If there is an error => -1 (e.g. no executable file with matching name found)
-/// - Otherwise => do not return.
-pub fn sys_exec(path: &str) -> isize {
+/// - Otherwise => The length of `args` array
+pub fn sys_exec(path: &str, args: &[*const u8]) -> isize {
     // Since path as type `&str` is a fat pointer that contains both the starting address and length information,
     // only the starting address is passed to the kernel using `as_ptr()` when making system calls.
-    syscall(SYSCALL_EXEC, [path.as_ptr() as usize, 0, 0])
+    syscall(
+        SYSCALL_EXEC,
+        [path.as_ptr() as usize, args.as_ptr() as usize, 0],
+    )
 }
 
 /// The current process waits for a child process to become a zombie process, collects all resources,
@@ -217,21 +253,4 @@ pub fn sys_exec(path: &str) -> isize {
 /// - Otherwise => The process ID of the terminated child process
 pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
     syscall(SYSCALL_WAITPID, [pid as usize, exit_code as usize, 0])
-}
-
-/// Open a pipe for the current process.
-/// - syscall ID: 59
-///
-/// # Parameter
-/// - `pipe`: Starting address of a usize array of length 2 in the application address space.
-///
-///   The kernel must write the file descriptors of the read and write sides of the pipe in order.
-///   The write side of the file descriptor is stored in the array.
-///
-/// # Return
-/// Conditional branching.
-/// - If there is an error => -1
-/// - Otherwise => a possible cause of error is that the address passed is an invalid one.
-pub fn sys_pipe(pipe: &mut [usize]) -> isize {
-    syscall(SYSCALL_PIPE, [pipe.as_mut_ptr() as usize, 0, 0])
 }

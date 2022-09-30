@@ -3,6 +3,8 @@
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 
+extern crate alloc;
+
 #[macro_use]
 pub mod console;
 mod lang_items;
@@ -11,6 +13,7 @@ mod syscall;
 #[macro_use]
 extern crate bitflags;
 
+use alloc::vec::Vec;
 use buddy_system_allocator::LockedHeap;
 use syscall::*;
 
@@ -28,19 +31,39 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub extern "C" fn _start() -> ! {
+pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
     unsafe {
         HEAP.lock()
             .init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
     }
-    exit(main());
+    // command arguments str
+    let mut v: Vec<&'static str> = Vec::new();
+    for i in 0..argc {
+        // Get the starting address of the command argument string from the 1st address of the argv array.
+        let str_start =
+            unsafe { ((argv + i * core::mem::size_of::<usize>()) as *const usize).read_volatile() };
+        // Look for the 0 that represents the end of the command arg you put in os/task/task.rs
+        // to get the end address.
+        let len = (0usize..)
+            // null character('\0') is an integer constant with the value zero.
+            // - https://theasciicode.com.ar
+            .find(|i| unsafe { ((str_start + *i) as *const u8).read_volatile() == 0 })
+            .unwrap();
+        v.push(
+            core::str::from_utf8(unsafe {
+                core::slice::from_raw_parts(str_start as *const u8, len)
+            })
+            .unwrap(),
+        );
+    }
+    exit(main(argc, v.as_slice()));
 }
 
 // Use the main logic of the application in the bin directory as the main logic
 // even if there are main symbols in both the lib.rs and bin directories
 #[linkage = "weak"]
 #[no_mangle]
-fn main() -> i32 {
+fn main(_argc: usize, _argv: &[&str]) -> i32 {
     panic!("Cannot find main!")
 }
 
@@ -59,6 +82,20 @@ bitflags! {
         /// i.e. `TRUNC`, when opening the file.
         const TRUNC = 1 << 10;
     }
+}
+
+/// Duplicates the file descriptor reference passed in the argument.
+///
+/// # Parameter
+/// - `fd`: The file descriptor of a file already open in the process.
+///
+/// # Return
+/// Conditional branching.
+/// - if an error occurred => -1,
+/// - otherwise => the new file descriptor of the opened file is accessible.
+/// A possible cause of the error is that the passed fd does not correspond to a legal open file.
+pub fn dup(fd: usize) -> isize {
+    sys_dup(fd)
 }
 
 /// Opens a regular file and returns an accessible file descriptor.
@@ -123,6 +160,22 @@ pub fn open(path: &str, flags: OpenFlags) -> isize {
 ///   - Error cause: the file descriptor passed may not correspond to the file being opened.
 pub fn close(fd: usize) -> isize {
     sys_close(fd)
+}
+
+/// Open a pipe for the current process.
+///
+/// # Parameter
+/// - `pipe_fd`: Starting address of a usize array of length 2 in the application address space.
+///
+///   The kernel must write the file descriptors of the read and write sides of the pipe in order.
+///   The write side of the file descriptor is stored in the array.
+///
+/// # Return
+/// Conditional branching.
+/// - If there is an error => -1
+/// - Otherwise => a possible cause of error is that the address passed is an invalid one.
+pub fn pipe(pipe_fd: &mut [usize]) -> isize {
+    sys_pipe(pipe_fd)
 }
 
 /// Reads a piece of content from a file into a buffer.
@@ -210,13 +263,14 @@ pub fn fork() -> isize {
 ///
 /// # Parameter
 /// - `path`: Name of the executable to load.
+/// - `args`: Array of starting addresses for command line parameter strings.
 ///
 /// # Return
 /// Conditional branching.
 /// - If there is an error => -1 (e.g. no executable file with matching name found)
-/// - Otherwise => do not return.
-pub fn exec(path: &str) -> isize {
-    sys_exec(path)
+/// - Otherwise => The length of `args` array
+pub fn exec(path: &str, args: &[*const u8]) -> isize {
+    sys_exec(path, args)
 }
 
 /// Wait for any child process to exit.
@@ -259,8 +313,7 @@ pub fn wait(exit_code: &mut i32) -> isize {
 ///
 /// # Return
 /// Conditional branching.
-/// - If there is no child process to wait => -1
-/// - If none of the waiting child processes have exited => -2
+/// - If none of the waiting child processes have exited => execute `yield_` & loop
 /// - Otherwise => The process ID of the terminated child process
 pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     loop {
@@ -279,20 +332,4 @@ pub fn sleep(period_ms: usize) {
     while sys_get_time() < start + period_ms as isize {
         sys_yield();
     }
-}
-
-/// Open a pipe for the current process.
-///
-/// # Parameter
-/// - `pipe_fd`: Starting address of a usize array of length 2 in the application address space.
-///
-///   The kernel must write the file descriptors of the read and write sides of the pipe in order.
-///   The write side of the file descriptor is stored in the array.
-///
-/// # Return
-/// Conditional branching.
-/// - If there is an error => -1
-/// - Otherwise => a possible cause of error is that the address passed is an invalid one.
-pub fn pipe(pipe_fd: &mut [usize]) -> isize {
-    sys_pipe(pipe_fd)
 }
