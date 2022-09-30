@@ -23,6 +23,13 @@ use user_lib::console::getchar;
 use user_lib::{close, dup, exec, fork, open, pipe, waitpid, OpenFlags};
 
 #[derive(Debug)]
+/// # Example
+///
+/// ```bash
+/// $ hello_world | yield < filea
+/// # => [ProcessArguments { input: "", output: "", args_copy: ["hello_world\0"], args_addr: [0x20340, 0x0] },
+/// #    ProcessArguments { input: "filea\0", output: "", args_copy: ["yield\0"], args_addr: [0x183b0, 0x0] }]
+/// ```
 struct ProcessArguments {
     /// input side(e.g. "a < b" => 'b')
     input: String,
@@ -61,6 +68,7 @@ impl ProcessArguments {
             .enumerate()
             .find(|(_, arg)| arg.as_str() == "<\0")
         {
+            // ? Why not use `input = args_copy.drain(idx..=idx + 1).collect();`?
             input = args_copy[idx + 1].clone();
             args_copy.drain(idx..=idx + 1);
         }
