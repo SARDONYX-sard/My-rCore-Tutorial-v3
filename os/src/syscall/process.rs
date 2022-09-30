@@ -99,8 +99,19 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     }
 }
 
-/// If there is not a child process whose pid is same as given, return -1.
-/// Else if there is a child process but it is still running, return -2.
+/// The current process waits for a child process to become a zombie process, collects all resources,
+/// and collects its return value.
+///
+/// # Parameters
+/// - `pid`: Process ID of the child process to wait. If -1, it means to wait for any child process.
+/// - `exit_code_ptr`: Address where the return value of the child process is stored.
+///              If this address is 0, it means that there is no need to store the return value.
+///
+/// # Return
+/// Conditional branching.
+/// - If there is not a child process whose pid is same as given => -1
+/// - If there is a child process but it is still running => -2
+/// - Otherwise => The process ID of the terminated child process
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     let task = current_task().unwrap();
     // find a child process

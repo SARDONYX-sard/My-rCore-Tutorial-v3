@@ -313,8 +313,7 @@ pub fn wait(exit_code: &mut i32) -> isize {
 ///
 /// # Return
 /// Conditional branching.
-/// - If there is no child process to wait => -1
-/// - If none of the waiting child processes have exited => -2
+/// - If none of the waiting child processes have exited => execute `yield_` & loop
 /// - Otherwise => The process ID of the terminated child process
 pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     loop {
