@@ -16,7 +16,8 @@ mod context;
 use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
 use crate::syscall::syscall;
 use crate::task::{
-    current_trap_cx, current_user_token, exit_current_and_run_next, suspend_current_and_run_next,
+    check_signals_error_of_current, current_add_signal, current_trap_cx, current_user_token,
+    exit_current_and_run_next, handle_signals, suspend_current_and_run_next, SignalFlags,
 };
 use crate::timer::set_next_trigger;
 use core::arch::{asm, global_asm};
@@ -78,7 +79,6 @@ pub fn trap_handler() -> ! {
     // Since the application's Trap context is not in the kernel address space,
     // call current_trap_cx to get a mutable reference to the current application's Trap context
     // instead of passing it as an argument to trap_handler as before.
-    let cx = current_trap_cx();
     let scause = scause::read(); // get trap cause;
     let stval = stval::read(); // get extra value
     match scause.cause() {
@@ -98,14 +98,13 @@ pub fn trap_handler() -> ! {
         | Trap::Exception(Exception::InstructionPageFault)
         | Trap::Exception(Exception::LoadFault)
         | Trap::Exception(Exception::LoadPageFault) => {
-            println!("[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.", stval, cx.sepc);
-            // page fault exit code
-            exit_current_and_run_next(-2);
+            // println!("[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.", stval, cx.sepc);
+            // // page fault exit code
+            // exit_current_and_run_next(-2);
+            current_add_signal(SignalFlags::SIGSEGV);
         }
         Trap::Exception(Exception::IllegalInstruction) => {
-            println!("[kernel] IllegalInstruction in application, kernel killed it.");
-            // illegal instruction exit code
-            exit_current_and_run_next(-3);
+            current_add_signal(SignalFlags::SIGILL);
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             set_next_trigger();
@@ -119,6 +118,15 @@ pub fn trap_handler() -> ! {
             );
         }
     }
+
+    // handle signals (handle the sent signal)
+    handle_signals();
+    // check error signals (if error then exit)
+    if let Some((errno, msg)) = check_signals_error_of_current() {
+        println!("[kernel] {}", msg);
+        exit_current_and_run_next(errno);
+    }
+
     // After processing the trap, call and return the user status.
     trap_return();
 }

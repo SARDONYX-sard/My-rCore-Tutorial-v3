@@ -1,4 +1,6 @@
+use crate::SignalAction;
 use core::arch::asm;
+
 const SYSCALL_DUP: usize = 24;
 const SYSCALL_OPEN: usize = 56;
 const SYSCALL_CLOSE: usize = 57;
@@ -7,6 +9,10 @@ const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
 const SYSCALL_YIELD: usize = 124;
+const SYSCALL_KILL: usize = 129;
+const SYSCALL_SIGACTION: usize = 134;
+const SYSCALL_SIGPROCMASK: usize = 135;
+const SYSCALL_SIGRETURN: usize = 139;
 const SYSCALL_GET_TIME: usize = 169;
 const SYSCALL_GETPID: usize = 172;
 const SYSCALL_FORK: usize = 220;
@@ -164,6 +170,31 @@ pub fn sys_yield() -> isize {
     syscall(SYSCALL_YIELD, [0, 0, 0])
 }
 
+/// Send a signal to the process
+/// - syscall ID: 129
+///
+/// # Parameters
+/// - `pid`: ID of the process
+/// - `signal`: integer value representing the signal
+///
+/// # Return
+/// Conditional branching.
+/// - If the bit corresponding to `signum` in the signal of the process control block is successfully
+///   set to 1. => 0
+///
+/// - No `TaskControlBlock` corresponding to `pid`(1st arg) => -1
+/// - no `signal` corresponding to `signum` => -1
+/// - If the bit of `signum` is already included in `signals` in the `TaskControlBlockInner`
+///   corresponding to `pid` => -1
+///
+/// # Information
+/// It is to send a signal with the value signum to the process with process number pid.
+/// Specifically, it finds the process control block by `pid` and sets the bit corresponding to `signum`
+/// in the signal of that process control block to 1.
+pub fn sys_kill(pid: usize, signal: i32) -> isize {
+    syscall(SYSCALL_KILL, [pid, signal as usize, 0])
+}
+
 // Get current time.
 /// - syscall ID: 169
 pub fn sys_get_time() -> isize {
@@ -253,4 +284,65 @@ pub fn sys_exec(path: &str, args: &[*const u8]) -> isize {
 /// - Otherwise => The process ID of the terminated child process
 pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
     syscall(SYSCALL_WAITPID, [pid as usize, exit_code as usize, 0])
+}
+
+/// Registers a new handler (`action` argument) corresponding to the `signum` given as argument
+/// and writes the original handler to `old_action`.
+/// - syscall ID: 134
+///
+/// # Parameters
+/// - `signum`: A signal bit digit corresponding to the process to be registered.
+/// - `action`: new signal processing configuration
+/// - `old_action`: old signal processing configuration
+///
+/// # Return
+/// Conditional branching.
+/// - If the `signum` and `action` arguments are successfully tied together => 0
+///
+/// - Failed to get the current task context => -1
+/// - If `signum` exceeds the bit digits of `MAX_SIG` => -1
+/// - If `action` or `old_action` is 0, or `signum` is `SIGKILL(1<<9)` or `SIGSTOP(1<<19)` => -1
+pub fn sys_sigaction(
+    signum: i32,
+    action: *const SignalAction,
+    old_action: *const SignalAction,
+) -> isize {
+    syscall(
+        SYSCALL_SIGACTION,
+        [signum as usize, action as usize, old_action as usize],
+    )
+}
+
+/// Set signal to block
+/// - syscall ID: 135
+///
+/// # Parameters
+/// - `mask`: signal mask
+///
+/// # Panic
+/// When casting mask to SignalFlags fails.
+///
+/// # Return
+/// Conditional branching.
+/// - When `signal_mask` is rewritten successfully => old `signal_mask`
+/// - Otherwise => -1
+pub fn sys_sigprocmask(mask: u32) -> isize {
+    syscall(SYSCALL_SIGPROCMASK, [mask as usize, 0, 0])
+}
+
+/// Set the signal being processed to -1 (none) and restoring a backup of a trap context.
+/// - syscall ID: 139
+///
+///  # Information
+/// A recovery operation performed by the signal handler after it has finished responding to a signal,
+/// i.e., restoring the trap context saved by the operating system before responding to the signal,
+/// so that execution can continue from where the process was normally running before the signal was
+/// processed.
+///
+/// # Return
+/// Conditional branching.
+/// - Success to restore a backup of a trap context => 0
+/// - Otherwise => -1
+pub fn sys_sigreturn() -> isize {
+    syscall(SYSCALL_SIGRETURN, [0, 0, 0])
 }
