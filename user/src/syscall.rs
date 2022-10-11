@@ -285,7 +285,6 @@ pub fn sys_exec(path: &str, args: &[*const u8]) -> isize {
 pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
     syscall(SYSCALL_WAITPID, [pid as usize, exit_code as usize, 0])
 }
-<<<<<<< HEAD
 
 /// Registers a new handler (`action` argument) corresponding to the `signum` given as argument
 /// and writes the original handler to `old_action`.
@@ -347,5 +346,3 @@ pub fn sys_sigprocmask(mask: u32) -> isize {
 pub fn sys_sigreturn() -> isize {
     syscall(SYSCALL_SIGRETURN, [0, 0, 0])
 }
-=======
->>>>>>> main

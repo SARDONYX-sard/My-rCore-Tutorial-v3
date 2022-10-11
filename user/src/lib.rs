@@ -281,15 +281,14 @@ pub fn exec(path: &str, args: &[*const u8]) -> isize {
 /// whether the waiting child process has terminated,
 /// thereby reducing waste of CPU resources.
 ///
-/// # Parameters
+/// # Parameter
 /// - `exit_code`: Address where the return value of the child process is stored.
 ///   If this address is 0, it means that there is no need to store the return value.
 ///
 /// # Return
 /// Conditional branching.
-/// - If there is no child process to wait => -1
-/// - If none of the waiting child processes have exited => -2
-/// - Otherwise => The process ID of the terminated child process
+/// - If not already stopped => call `yield_` & return 0
+/// - exit => The process ID of the terminated child process
 pub fn wait(exit_code: &mut i32) -> isize {
     loop {
         match sys_waitpid(-1, exit_code as *mut _) {
@@ -334,7 +333,6 @@ pub fn sleep(period_ms: usize) {
         sys_yield();
     }
 }
-<<<<<<< HEAD
 
 /// Action for a signal
 #[repr(C)]
@@ -509,5 +507,3 @@ pub fn sigprocmask(mask: u32) -> isize {
 pub fn sigreturn() -> isize {
     sys_sigreturn()
 }
-=======
->>>>>>> main
