@@ -1,6 +1,6 @@
 //! Types related to task management
 use super::pid::{pid_alloc, KernelStack, PidHandle};
-use super::TaskContext;
+use super::{SignalActions, SignalFlags, TaskContext};
 use crate::config::TRAP_CONTEXT;
 use crate::fs::{File, Stdin, Stdout};
 use crate::mm::{translated_refmut, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
@@ -62,6 +62,36 @@ pub struct TaskControlBlockInner {
     /// - The contents wrapped in `Arc` are placed on the kernel heap, not the stack,
     ///   so there is no need to specify the size at compile time.
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
+    /// A data type that holds a list of signal numbers
+    ///
+    /// Signals registered here are those that are to be processed.
+    pub signals: SignalFlags,
+    /// An attribute of a process, the list of signals that are blocked.
+    ///
+    /// `SignalAction` corresponding to the bit flags of the signal registered here will not be performed.
+    pub signal_mask: SignalFlags,
+    /// signal to be processed
+    pub handling_sig: isize,
+    /// List of signal handling routines
+    pub signal_actions: SignalActions,
+    /// whether the task was killed or not
+    ///
+    /// The purpose of kill is to flag whether the current process has been killed or not.
+    /// This is so that the process is not terminated immediately upon receipt of the kill signal,
+    /// but rather at the appropriate time.
+    /// At this point, the kill is needed as a marker to exit the loop of unnecessary signal processing.
+    pub killed: bool,
+    /// whether the task is suspended
+    ///
+    /// Upon receipt of the signal
+    /// - `SIGSTOP` => sets `frozen` to true, and the current process blocks to wait for `SIGCONT`.
+    /// - `SIGCONT` => sets `frozen` to false, and the process exits
+    ///                the cycle of waiting for the signal, returns to the user state, and continues execution.
+    pub frozen: bool,
+    /// Trap context in which the interruption occurred
+    ///
+    /// Necessary to return to the original process again after an interrupt by a signal is made.
+    pub trap_ctx_backup: Option<TrapContext>,
 }
 
 impl TaskControlBlockInner {
@@ -139,6 +169,13 @@ impl TaskControlBlock {
                         // 2 -> stderr
                         Some(Arc::new(Stdout)),
                     ],
+                    signals: SignalFlags::empty(),
+                    signal_mask: SignalFlags::empty(),
+                    handling_sig: -1,
+                    signal_actions: SignalActions::default(),
+                    killed: false,
+                    frozen: false,
+                    trap_ctx_backup: None,
                 })
             },
         };
@@ -281,6 +318,13 @@ impl TaskControlBlock {
                     children: Vec::new(),
                     exit_code: 0,
                     fd_table: new_fd_table,
+                    signals: SignalFlags::empty(),
+                    signal_mask: parent_inner.signal_mask,
+                    handling_sig: -1,
+                    signal_actions: parent_inner.signal_actions.clone(),
+                    killed: false,
+                    frozen: false,
+                    trap_ctx_backup: None,
                 })
             },
         });
