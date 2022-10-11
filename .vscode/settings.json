@@ -13,6 +13,10 @@
     "editor.scrollBeyondLastLine": false,
     "editor.wordSeparators": "./\\<)\"'>:,.;<>~!@# ○$%^&*|+=[]{}`~?．。，、（）「」［］｛｝《》てにをはがのともへでや"
   },
+  "[rust]": {
+    "editor.formatOnSave": true
+  },
+  "cSpell.allowCompoundWords": true,
   "cSpell.words": [
     "__alltraps",
     "ASID",
@@ -127,6 +131,7 @@
     "WRONLY",
     "xstate"
   ],
+  "editor.formatOnSave": true,
   "files.associations": {
     "*.asm": "riscv",
     "*.S": "riscv"
@@ -135,9 +140,16 @@
   "files.autoSaveDelay": 2000,
   "files.exclude": {
     "**/.dccache": true,
+    "**/.DS_Store": true,
     "**/.gdb_history": true,
-    "**/last-qemu": true
+    "**/.git": true,
+    "**/*.bk": true,
+    "**/CVS": true,
+    "**/last-qemu": true,
+    "**/target": true
   },
+  "git.autoRepositoryDetection": false,
+  "git.ignoreLimitWarning": true,
   "markdownlint.config": {
     "default": true,
     "MD024": false,
@@ -149,5 +161,8 @@
     "board_qemu"
   ],
   "rust-analyzer.checkOnSave.allTargets": false,
+  "rust-analyzer.checkOnSave.command": "clippy",
   "rust-analyzer.imports.prefer.no.std": true,
+  "rust-analyzer.inlayHints.lifetimeElisionHints.enable": "skip_trivial",
+  "rust-analyzer.rustfmt.rangeFormatting.enable": true
 }
