@@ -359,6 +359,8 @@ bitflags! {
     pub struct SignalFlags: i32 {
         /// Default behavior: kill process
         const SIGDEF = 1;
+        /// Hang-up, termination of controlled terminal.
+        const SIGHUP = 1 << 1;
         /// signal interrupt
         /// - sent when CTRL+C is pressed in the current process.
         const SIGINT    = 1 << 2;
