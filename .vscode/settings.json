@@ -13,6 +13,10 @@
     "editor.scrollBeyondLastLine": false,
     "editor.wordSeparators": "./\\<)\"'>:,.;<>~!@# ○$%^&*|+=[]{}`~?．。，、（）「」［］｛｝《》てにをはがのともへでや"
   },
+  "[rust]": {
+    "editor.formatOnSave": true
+  },
+  "cSpell.allowCompoundWords": true,
   "cSpell.words": [
     "__alltraps",
     "ASID",
@@ -20,6 +24,7 @@
     "binutils",
     "bitflags",
     "clippy",
+    "csrw",
     "dccache",
     "dealloc",
     "ebss",
@@ -27,6 +32,7 @@
     "edata",
     "ekernel",
     "erodata",
+    "errno",
     "etext",
     "filea",
     "fileb",
@@ -62,6 +68,42 @@
     "sdata",
     "sepc",
     "SFENCE",
+    "SIGABRT",
+    "sigaction",
+    "SIGALRM",
+    "SIGBUS",
+    "SIGCHLD",
+    "SIGCONT",
+    "SIGDEF",
+    "SIGFPE",
+    "SIGHUP",
+    "SIGILL",
+    "SIGINT",
+    "SIGIO",
+    "SIGKILL",
+    "signum",
+    "SIGPIPE",
+    "sigprocmask",
+    "SIGPROF",
+    "SIGPWR",
+    "SIGQUIT",
+    "sigreturn",
+    "SIGSEGV",
+    "SIGSTKFLT",
+    "SIGSTOP",
+    "SIGSYS",
+    "SIGTERM",
+    "SIGTRAP",
+    "SIGTSTP",
+    "SIGTTIN",
+    "SIGTTOU",
+    "SIGURG",
+    "SIGUSR1",
+    "SIGUSR2",
+    "SIGVTALRM",
+    "SIGWINCH",
+    "SIGXCPU",
+    "SIGXFSZ",
     "sret",
     "srodata",
     "sscratch",
@@ -74,6 +116,7 @@
     "stvec",
     "syscall",
     "syscalls",
+    "trapframe",
     "TRUNC",
     "uart",
     "unborrowed",
@@ -88,6 +131,7 @@
     "WRONLY",
     "xstate"
   ],
+  "editor.formatOnSave": true,
   "files.associations": {
     "*.asm": "riscv",
     "*.S": "riscv"
@@ -96,9 +140,16 @@
   "files.autoSaveDelay": 2000,
   "files.exclude": {
     "**/.dccache": true,
+    "**/.DS_Store": true,
     "**/.gdb_history": true,
-    "**/last-qemu": true
+    "**/.git": true,
+    "**/*.bk": true,
+    "**/CVS": true,
+    "**/last-qemu": true,
+    "**/target": true
   },
+  "git.autoRepositoryDetection": false,
+  "git.ignoreLimitWarning": true,
   "markdownlint.config": {
     "default": true,
     "MD024": false,
@@ -109,5 +160,9 @@
   "rust-analyzer.cargo.features": [
     "board_qemu"
   ],
-  "rust-analyzer.checkOnSave.allTargets": false
+  "rust-analyzer.checkOnSave.allTargets": false,
+  "rust-analyzer.checkOnSave.command": "clippy",
+  "rust-analyzer.imports.prefer.no.std": true,
+  "rust-analyzer.inlayHints.lifetimeElisionHints.enable": "skip_trivial",
+  "rust-analyzer.rustfmt.rangeFormatting.enable": true
 }

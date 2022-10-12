@@ -1,8 +1,35 @@
 //! File and filesystem-related syscalls
 
-use crate::fs::{open_file, OpenFlags};
-use crate::mm::{translated_byte_buffer, translated_str, UserBuffer};
+use alloc::sync::Arc;
+
+use crate::fs::{make_pipe, open_file, OpenFlags};
+use crate::mm::{translated_byte_buffer, translated_refmut, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
+
+/// Duplicates the file descriptor reference passed in the argument.
+/// - syscall ID: 24
+///
+/// # Parameter
+/// - `fd`: The file descriptor of a file already open in the process.
+///
+/// # Return
+/// Conditional branching.
+/// - if an error occurred => -1,
+/// - otherwise => the new file descriptor of the opened file is accessible.
+/// A possible cause of the error is that the passed fd does not correspond to a legal open file.
+pub fn sys_dup(fd: usize) -> isize {
+    let task = current_task().unwrap();
+    let mut inner = task.inner_exclusive_access();
+    if fd >= inner.fd_table.len() {
+        return -1;
+    }
+    if inner.fd_table[fd].is_none() {
+        return -1;
+    }
+    let new_fd = inner.alloc_fd();
+    inner.fd_table[new_fd] = Some(Arc::clone(inner.fd_table[fd].as_ref().unwrap()));
+    new_fd as isize
+}
 
 /// Write the data in the buffer in memory to the file.
 ///
@@ -132,5 +159,31 @@ pub fn sys_close(fd: usize) -> isize {
     // which reduces the reference count of the file, and automatically regenerates the resource occupied
     // by the file when the reference count reaches zero.
     inner.fd_table[fd].take();
+    0
+}
+
+/// Open a pipe for the current process.
+///
+/// # Parameter
+/// - `pipe`: Starting address of a usize array of length 2 in the application address space.
+///
+///   The kernel must write the file descriptors of the read and write sides of the pipe in order.
+///   The write side of the file descriptor is stored in the array.
+///
+/// # Return
+/// Conditional branching.
+/// - If there is an error => -1
+/// - Otherwise => a possible cause of error is that the address passed is an invalid one.
+pub fn sys_pipe(pipe: *mut usize) -> isize {
+    let task = current_task().unwrap();
+    let token = current_user_token();
+    let mut inner = task.inner_exclusive_access();
+    let (pipe_read, pipe_write) = make_pipe();
+    let read_fd = inner.alloc_fd();
+    inner.fd_table[read_fd] = Some(pipe_read);
+    let write_fd = inner.alloc_fd();
+    inner.fd_table[write_fd] = Some(pipe_write);
+    *translated_refmut(token, pipe) = read_fd;
+    *translated_refmut(token, unsafe { pipe.add(1) }) = write_fd;
     0
 }

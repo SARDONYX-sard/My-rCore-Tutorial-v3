@@ -1,11 +1,18 @@
+use crate::SignalAction;
 use core::arch::asm;
 
+const SYSCALL_DUP: usize = 24;
 const SYSCALL_OPEN: usize = 56;
 const SYSCALL_CLOSE: usize = 57;
+const SYSCALL_PIPE: usize = 59;
 const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_EXIT: usize = 93;
 const SYSCALL_YIELD: usize = 124;
+const SYSCALL_KILL: usize = 129;
+const SYSCALL_SIGACTION: usize = 134;
+const SYSCALL_SIGPROCMASK: usize = 135;
+const SYSCALL_SIGRETURN: usize = 139;
 const SYSCALL_GET_TIME: usize = 169;
 const SYSCALL_GETPID: usize = 172;
 const SYSCALL_FORK: usize = 220;
@@ -27,6 +34,21 @@ fn syscall(id: usize, args: [usize; 3]) -> isize {
         );
     }
     ret
+}
+
+/// Duplicates the file descriptor reference passed in the argument.
+/// - syscall ID: 24
+///
+/// # Parameter
+/// - `fd`: The file descriptor of a file already open in the process.
+///
+/// # Return
+/// Conditional branching.
+/// - if an error occurred => -1,
+/// - otherwise => the new file descriptor of the opened file is accessible.
+/// A possible cause of the error is that the passed fd does not correspond to a legal open file.
+pub fn sys_dup(fd: usize) -> isize {
+    syscall(SYSCALL_DUP, [fd, 0, 0])
 }
 
 /// Opens a regular file and returns an accessible file descriptor.
@@ -76,6 +98,23 @@ pub fn sys_open(path: &str, flags: u32) -> isize {
 ///   - Error cause: the file descriptor passed may not correspond to the file being opened.
 pub fn sys_close(fd: usize) -> isize {
     syscall(SYSCALL_CLOSE, [fd, 0, 0])
+}
+
+/// Open a pipe for the current process.
+/// - syscall ID: 59
+///
+/// # Parameter
+/// - `pipe`: Starting address of a usize array of length 2 in the application address space.
+///
+///   The kernel must write the file descriptors of the read and write sides of the pipe in order.
+///   The write side of the file descriptor is stored in the array.
+///
+/// # Return
+/// Conditional branching.
+/// - If there is an error => -1
+/// - Otherwise => a possible cause of error is that the address passed is an invalid one.
+pub fn sys_pipe(pipe: &mut [usize]) -> isize {
+    syscall(SYSCALL_PIPE, [pipe.as_mut_ptr() as usize, 0, 0])
 }
 
 /// Reads a piece of content from a file into a buffer.
@@ -129,6 +168,31 @@ pub fn sys_exit(xstate: i32) -> ! {
 /// always returns 0.
 pub fn sys_yield() -> isize {
     syscall(SYSCALL_YIELD, [0, 0, 0])
+}
+
+/// Send a signal to the process
+/// - syscall ID: 129
+///
+/// # Parameters
+/// - `pid`: ID of the process
+/// - `signal`: integer value representing the signal
+///
+/// # Return
+/// Conditional branching.
+/// - If the bit corresponding to `signum` in the signal of the process control block is successfully
+///   set to 1. => 0
+///
+/// - No `TaskControlBlock` corresponding to `pid`(1st arg) => -1
+/// - no `signal` corresponding to `signum` => -1
+/// - If the bit of `signum` is already included in `signals` in the `TaskControlBlockInner`
+///   corresponding to `pid` => -1
+///
+/// # Information
+/// It is to send a signal with the value signum to the process with process number pid.
+/// Specifically, it finds the process control block by `pid` and sets the bit corresponding to `signum`
+/// in the signal of that process control block to 1.
+pub fn sys_kill(pid: usize, signal: i32) -> isize {
+    syscall(SYSCALL_KILL, [pid, signal as usize, 0])
 }
 
 // Get current time.
@@ -189,15 +253,19 @@ pub fn sys_fork() -> isize {
 ///
 /// # Parameter
 /// - `path`: Name of the executable to load.
+/// - `args`: Array of starting addresses for command line parameter strings.
 ///
 /// # Return
 /// Conditional branching.
 /// - If there is an error => -1 (e.g. no executable file with matching name found)
-/// - Otherwise => do not return.
-pub fn sys_exec(path: &str) -> isize {
+/// - Otherwise => The length of `args` array
+pub fn sys_exec(path: &str, args: &[*const u8]) -> isize {
     // Since path as type `&str` is a fat pointer that contains both the starting address and length information,
     // only the starting address is passed to the kernel using `as_ptr()` when making system calls.
-    syscall(SYSCALL_EXEC, [path.as_ptr() as usize, 0, 0])
+    syscall(
+        SYSCALL_EXEC,
+        [path.as_ptr() as usize, args.as_ptr() as usize, 0],
+    )
 }
 
 /// The current process waits for a child process to become a zombie process, collects all resources,
@@ -216,4 +284,65 @@ pub fn sys_exec(path: &str) -> isize {
 /// - Otherwise => The process ID of the terminated child process
 pub fn sys_waitpid(pid: isize, exit_code: *mut i32) -> isize {
     syscall(SYSCALL_WAITPID, [pid as usize, exit_code as usize, 0])
+}
+
+/// Registers a new handler (`action` argument) corresponding to the `signum` given as argument
+/// and writes the original handler to `old_action`.
+/// - syscall ID: 134
+///
+/// # Parameters
+/// - `signum`: A signal bit digit corresponding to the process to be registered.
+/// - `action`: new signal processing configuration
+/// - `old_action`: old signal processing configuration
+///
+/// # Return
+/// Conditional branching.
+/// - If the `signum` and `action` arguments are successfully tied together => 0
+///
+/// - Failed to get the current task context => -1
+/// - If `signum` exceeds the bit digits of `MAX_SIG` => -1
+/// - If `action` or `old_action` is 0, or `signum` is `SIGKILL(1<<9)` or `SIGSTOP(1<<19)` => -1
+pub fn sys_sigaction(
+    signum: i32,
+    action: *const SignalAction,
+    old_action: *const SignalAction,
+) -> isize {
+    syscall(
+        SYSCALL_SIGACTION,
+        [signum as usize, action as usize, old_action as usize],
+    )
+}
+
+/// Set signal to block
+/// - syscall ID: 135
+///
+/// # Parameters
+/// - `mask`: signal mask
+///
+/// # Panic
+/// When casting mask to SignalFlags fails.
+///
+/// # Return
+/// Conditional branching.
+/// - When `signal_mask` is rewritten successfully => old `signal_mask`
+/// - Otherwise => -1
+pub fn sys_sigprocmask(mask: u32) -> isize {
+    syscall(SYSCALL_SIGPROCMASK, [mask as usize, 0, 0])
+}
+
+/// Set the signal being processed to -1 (none) and restoring a backup of a trap context.
+/// - syscall ID: 139
+///
+///  # Information
+/// A recovery operation performed by the signal handler after it has finished responding to a signal,
+/// i.e., restoring the trap context saved by the operating system before responding to the signal,
+/// so that execution can continue from where the process was normally running before the signal was
+/// processed.
+///
+/// # Return
+/// Conditional branching.
+/// - Success to restore a backup of a trap context => 0
+/// - Otherwise => -1
+pub fn sys_sigreturn() -> isize {
+    syscall(SYSCALL_SIGRETURN, [0, 0, 0])
 }

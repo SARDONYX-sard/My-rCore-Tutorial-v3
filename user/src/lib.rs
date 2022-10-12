@@ -3,6 +3,8 @@
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 
+extern crate alloc;
+
 #[macro_use]
 pub mod console;
 mod lang_items;
@@ -11,6 +13,7 @@ mod syscall;
 #[macro_use]
 extern crate bitflags;
 
+use alloc::vec::Vec;
 use buddy_system_allocator::LockedHeap;
 use syscall::*;
 
@@ -28,19 +31,39 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
 
 #[no_mangle]
 #[link_section = ".text.entry"]
-pub extern "C" fn _start() -> ! {
+pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
     unsafe {
         HEAP.lock()
             .init(HEAP_SPACE.as_ptr() as usize, USER_HEAP_SIZE);
     }
-    exit(main());
+    // command arguments str
+    let mut v: Vec<&'static str> = Vec::new();
+    for i in 0..argc {
+        // Get the starting address of the command argument string from the 1st address of the argv array.
+        let str_start =
+            unsafe { ((argv + i * core::mem::size_of::<usize>()) as *const usize).read_volatile() };
+        // Look for the 0 that represents the end of the command arg you put in os/task/task.rs
+        // to get the end address.
+        let len = (0usize..)
+            // null character('\0') is an integer constant with the value zero.
+            // - https://theasciicode.com.ar
+            .find(|i| unsafe { ((str_start + *i) as *const u8).read_volatile() == 0 })
+            .unwrap();
+        v.push(
+            core::str::from_utf8(unsafe {
+                core::slice::from_raw_parts(str_start as *const u8, len)
+            })
+            .unwrap(),
+        );
+    }
+    exit(main(argc, v.as_slice()));
 }
 
 // Use the main logic of the application in the bin directory as the main logic
 // even if there are main symbols in both the lib.rs and bin directories
 #[linkage = "weak"]
 #[no_mangle]
-fn main() -> i32 {
+fn main(_argc: usize, _argv: &[&str]) -> i32 {
     panic!("Cannot find main!")
 }
 
@@ -59,6 +82,20 @@ bitflags! {
         /// i.e. `TRUNC`, when opening the file.
         const TRUNC = 1 << 10;
     }
+}
+
+/// Duplicates the file descriptor reference passed in the argument.
+///
+/// # Parameter
+/// - `fd`: The file descriptor of a file already open in the process.
+///
+/// # Return
+/// Conditional branching.
+/// - if an error occurred => -1,
+/// - otherwise => the new file descriptor of the opened file is accessible.
+/// A possible cause of the error is that the passed fd does not correspond to a legal open file.
+pub fn dup(fd: usize) -> isize {
+    sys_dup(fd)
 }
 
 /// Opens a regular file and returns an accessible file descriptor.
@@ -123,6 +160,22 @@ pub fn open(path: &str, flags: OpenFlags) -> isize {
 ///   - Error cause: the file descriptor passed may not correspond to the file being opened.
 pub fn close(fd: usize) -> isize {
     sys_close(fd)
+}
+
+/// Open a pipe for the current process.
+///
+/// # Parameter
+/// - `pipe_fd`: Starting address of a usize array of length 2 in the application address space.
+///
+///   The kernel must write the file descriptors of the read and write sides of the pipe in order.
+///   The write side of the file descriptor is stored in the array.
+///
+/// # Return
+/// Conditional branching.
+/// - If there is an error => -1
+/// - Otherwise => a possible cause of error is that the address passed is an invalid one.
+pub fn pipe(pipe_fd: &mut [usize]) -> isize {
+    sys_pipe(pipe_fd)
 }
 
 /// Reads a piece of content from a file into a buffer.
@@ -210,13 +263,14 @@ pub fn fork() -> isize {
 ///
 /// # Parameter
 /// - `path`: Name of the executable to load.
+/// - `args`: Array of starting addresses for command line parameter strings.
 ///
 /// # Return
 /// Conditional branching.
 /// - If there is an error => -1 (e.g. no executable file with matching name found)
-/// - Otherwise => do not return.
-pub fn exec(path: &str) -> isize {
-    sys_exec(path)
+/// - Otherwise => The length of `args` array
+pub fn exec(path: &str, args: &[*const u8]) -> isize {
+    sys_exec(path, args)
 }
 
 /// Wait for any child process to exit.
@@ -227,15 +281,14 @@ pub fn exec(path: &str) -> isize {
 /// whether the waiting child process has terminated,
 /// thereby reducing waste of CPU resources.
 ///
-/// # Parameters
+/// # Parameter
 /// - `exit_code`: Address where the return value of the child process is stored.
 ///   If this address is 0, it means that there is no need to store the return value.
 ///
 /// # Return
 /// Conditional branching.
-/// - If there is no child process to wait => -1
-/// - If none of the waiting child processes have exited => -2
-/// - Otherwise => The process ID of the terminated child process
+/// - If not already stopped => call `yield_` & return 0
+/// - exit => The process ID of the terminated child process
 pub fn wait(exit_code: &mut i32) -> isize {
     loop {
         match sys_waitpid(-1, exit_code as *mut _) {
@@ -260,8 +313,7 @@ pub fn wait(exit_code: &mut i32) -> isize {
 ///
 /// # Return
 /// Conditional branching.
-/// - If there is no child process to wait => -1
-/// - If none of the waiting child processes have exited => -2
+/// - If none of the waiting child processes have exited => execute `yield_` & loop
 /// - Otherwise => The process ID of the terminated child process
 pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     loop {
@@ -280,4 +332,178 @@ pub fn sleep(period_ms: usize) {
     while sys_get_time() < start + period_ms as isize {
         sys_yield();
     }
+}
+
+/// Action for a signal
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct SignalAction {
+    // address of signal handle routine
+    pub handler: usize,
+    // signal mask
+    pub mask: SignalFlags,
+}
+
+impl Default for SignalAction {
+    fn default() -> Self {
+        Self {
+            handler: 0,
+            mask: SignalFlags::empty(),
+        }
+    }
+}
+
+bitflags! {
+    /// Signals
+    /// - https://www.gnu.org/software/libc/manual/html_node/Job-Control-Signals.html
+    pub struct SignalFlags: i32 {
+        /// Default behavior: kill process
+        const SIGDEF = 1;
+        /// Hang-up, termination of controlled terminal.
+        const SIGHUP = 1 << 1;
+        /// signal interrupt
+        /// - sent when CTRL+C is pressed in the current process.
+        const SIGINT    = 1 << 2;
+        const SIGQUIT = 1 << 3;
+        /// Exceptions to False Orders
+        const SIGILL    = 1 << 4;
+        const SIGTRAP = 1 << 5;
+        /// signal abort
+        /// - Generated by a call to the abort function,
+        ///   causing the process to terminate abnormally.
+        const SIGABRT   = 1 << 6;
+        const SIGBUS = 1 << 7;
+        const SIGFPE    = 1 << 8;
+        /// Force the process to terminate
+        const SIGKILL = 1 << 9;
+        /// User defined signal 1
+        const SIGUSR1 = 1 << 10;
+        /// signal segmentation violation
+        /// - Illegal memory access exception
+        const SIGSEGV = 1 << 11;
+        /// User defined signal 2
+        const SIGUSR2 = 1 << 12;
+        const SIGPIPE = 1 << 13;
+        const SIGALRM = 1 << 14;
+        const SIGTERM = 1 << 15;
+        const SIGSTKFLT = 1 << 16;
+        /// signal child
+        /// - Sent to a parent process whenever one of its child processes terminates or stops.
+        const SIGCHLD = 1 << 17;
+        /// signal continue
+        /// - Signal to cancel pause
+        const SIGCONT = 1 << 18;
+        /// signal stop
+        /// - Suspends the process
+        const SIGSTOP = 1 << 19;
+        /// `CTRL+Z` key pressed in current process will be sent to current process to pause
+        const SIGTSTP = 1 << 20;
+        const SIGTTIN = 1 << 21;
+        const SIGTTOU = 1 << 22;
+        const SIGURG = 1 << 23;
+        const SIGXCPU = 1 << 24;
+        const SIGXFSZ = 1 << 25;
+        const SIGVTALRM = 1 << 26;
+        const SIGPROF = 1 << 27;
+        const SIGWINCH = 1 << 28;
+        const SIGIO = 1 << 29;
+        const SIGPWR = 1 << 30;
+        const SIGSYS = 1 << 31;
+    }
+}
+
+impl SignalFlags {
+    /// Get bit digit
+    ///
+    /// # Example
+    /// ```rust
+    /// let user_digit = SignalFlags::to_bit_digit(SignalFlags::SIGUSR1) as i32;
+    /// assert_eq!(user_digit, 10);
+    /// ```
+    pub fn to_bit_digit(bits: SignalFlags) -> u32 {
+        SignalFlags::log_2(bits.bits())
+    }
+
+    fn log_2(x: i32) -> u32 {
+        (core::mem::size_of::<i32>() * 8) as u32 - x.leading_zeros() - 1
+    }
+}
+
+/// Send a signal to the process
+///
+/// # Parameters
+/// - `pid`: ID of the process
+/// - `signal`: integer value representing the signal
+///
+/// # Return
+/// Conditional branching.
+/// - If the bit corresponding to `signum` in the signal of the process control block is successfully
+///   set to 1. => 0
+///
+/// - No `TaskControlBlock` corresponding to `pid`(1st arg) => -1
+/// - no `signal` corresponding to `signum` => -1
+/// - If the bit of `signum` is already included in `signals` in the `TaskControlBlockInner`
+///   corresponding to `pid` => -1
+///
+/// # Information
+/// It is to send a signal with the value signum to the process with process number pid.
+/// Specifically, it finds the process control block by `pid` and sets the bit corresponding to `signum`
+/// in the signal of that process control block to 1.
+pub fn kill(pid: usize, signal: i32) -> isize {
+    sys_kill(pid, signal)
+}
+
+/// Registers a new handler (`action` argument) corresponding to the `signum` given as argument
+/// and writes the original handler to `old_action`.
+///
+/// # Parameters
+/// - `signum`: A signal bit digit corresponding to the process to be registered.
+/// - `action`: new signal processing configuration
+/// - `old_action`: old signal processing configuration
+///
+/// # Return
+/// Conditional branching.
+/// - If the `signum` and `action` arguments are successfully tied together => 0
+///
+/// - Failed to get the current task context => -1
+/// - If `signum` exceeds the bit digits of `MAX_SIG` => -1
+/// - If `action` or `old_action` is 0, or `signum` is `SIGKILL(1<<9)` or `SIGSTOP(1<<19)` => -1
+pub fn sigaction(
+    signum: i32,
+    action: *const SignalAction,
+    old_action: *const SignalAction,
+) -> isize {
+    sys_sigaction(signum, action, old_action)
+}
+
+/// Set signal to block
+///
+/// # Parameters
+/// - `mask`: signal mask
+///
+/// # Panic
+/// When casting mask to SignalFlags fails.
+///
+/// # Return
+/// Conditional branching.
+/// - When `signal_mask` is rewritten successfully => old `signal_mask`
+/// - Otherwise => -1
+pub fn sigprocmask(mask: u32) -> isize {
+    sys_sigprocmask(mask)
+}
+
+/// Set the signal being processed to -1 (none) and restoring a backup of a trap context.
+///
+///  # Information
+/// A recovery operation performed by the signal handler after it has finished responding to a signal,
+/// i.e., restoring the trap context saved by the operating system before responding to the signal,
+/// so that execution can continue from where the process was normally running before the signal was
+/// processed.
+///
+/// # Return
+/// Conditional branching.
+/// - Success to restore a backup of a trap context => 0
+/// - Otherwise => -1
+pub fn sigreturn() -> isize {
+    sys_sigreturn()
 }

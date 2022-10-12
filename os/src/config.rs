@@ -12,7 +12,7 @@ pub const PAGE_SIZE: usize = 0x1000;
 /// Bit width of intra-page offset
 pub const PAGE_SIZE_BITS: usize = 0xc;
 
-/// Trampoline starting virtual address
+/// Trampoline(trap handler) starting virtual address
 /// - usize::MAX - PAGE_SIZE + 1;
 pub const TRAMPOLINE: usize = usize::MAX - PAGE_SIZE + 1;
 /// `TrapContext` starting virtual address

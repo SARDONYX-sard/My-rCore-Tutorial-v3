@@ -16,6 +16,7 @@ use riscv::register::sstatus::{self, set_spp, Sstatus, SPP};
 ///
 ///  Therefore, they must also be saved and restored before `sret`.
 #[repr(C)]
+#[derive(Debug, Clone, Copy)]
 pub struct TrapContext {
     /// - x0 ~ x31: General-purpose registers
     pub x: [usize; 32],

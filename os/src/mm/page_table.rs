@@ -377,9 +377,26 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
     string
 }
 
-///translate a generic through page table and return a mutable reference
+/// translate a generic through page table and return a reference
 ///
 /// Get physical address corresponding to virtual address of `ptr` with `token` as root node.
+/// # Parameters
+/// - `token`: The physical address of each application root node
+/// - `ptr`: The pointer of any data
+pub fn translated_ref<T>(token: usize, ptr: *const T) -> &'static T {
+    let page_table = PageTable::from_token(token);
+    page_table
+        .translate_va(VirtAddr::from(ptr as usize))
+        .unwrap()
+        .get_ref()
+}
+
+/// translate a generic through page table and return a mutable reference
+///
+/// Get physical address corresponding to virtual address of `ptr` with `token` as root node.
+/// # Parameters
+/// - `token`: The physical address of each application root node
+/// - `ptr`: The pointer of any data
 pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
     //println!("into translated_refmut!");
     let page_table = PageTable::from_token(token);
@@ -391,21 +408,89 @@ pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
         .get_mut()
 }
 
+/// Temporary memory for User application to read and write
 pub struct UserBuffer {
     pub buffers: Vec<&'static mut [u8]>,
 }
 
 impl UserBuffer {
+    /// Creates a new buffer for user
+    ///
+    /// # Example
+    /// ```rust
+    /// let token = current_user_token();
+    /// let task = current_task().unwrap();
+    /// let inner = task.inner_exclusive_access();
+    /// if fd >= inner.fd_table.len() {
+    ///     return -1;
+    /// }
+    /// if let Some(file) = &inner.fd_table[fd] {
+    ///     let file = file.clone();
+    ///     // release current task TCB(TaskControlBlock) manually to avoid multi-borrow
+    ///     drop(inner);
+    ///     file.read(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
+    /// } else {
+    ///     -1
+    /// }
+    /// ```
     pub fn new(buffers: Vec<&'static mut [u8]>) -> Self {
         Self { buffers }
     }
 
-    /// Get the length of the u8 array pointed to by each pointer referenced by Vector(UserBuffer.buffer).
+    /// Returns the length of the u8 slice in `UserBuffer.buffer`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use alloc::vec;
+    ///
+    /// let bytes_array =[1, 2, 3] as [u8];
+    /// let a = UserBuffer::new(vec![bytes_array]);
+    /// assert_eq!(a.len(), 3);
+    /// ```
     pub fn len(&self) -> usize {
         let mut total = 0;
         for b in self.buffers.iter() {
             total += b.len();
         }
         total
+    }
+}
+
+impl IntoIterator for UserBuffer {
+    type Item = *mut u8;
+    type IntoIter = UserBufferIterator;
+    fn into_iter(self) -> Self::IntoIter {
+        UserBufferIterator {
+            buffers: self.buffers,
+            current_buffer: 0,
+            current_idx: 0,
+        }
+    }
+}
+
+pub struct UserBufferIterator {
+    buffers: Vec<&'static mut [u8]>,
+    /// One-dimensional array index
+    current_buffer: usize,
+    /// index of two-dimensional array
+    current_idx: usize,
+}
+
+impl Iterator for UserBufferIterator {
+    type Item = *mut u8;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.current_buffer >= self.buffers.len() {
+            None
+        } else {
+            let r = &mut self.buffers[self.current_buffer][self.current_idx] as *mut _;
+            if self.current_idx + 1 == self.buffers[self.current_buffer].len() {
+                self.current_idx = 0;
+                self.current_buffer += 1;
+            } else {
+                self.current_idx += 1;
+            }
+            Some(r)
+        }
     }
 }

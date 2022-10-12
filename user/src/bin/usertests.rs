@@ -25,7 +25,8 @@ static SUCC_TESTS: &[(&str, &str, &str, &str, i32)] = &[
     ("yield\0", "\0", "\0", "\0", 0),
 ];
 
-static FAIL_TESTS: &[(&str, &str, &str, &str, i32)] = &[("stack_overflow\0", "\0", "\0", "\0", -2)];
+static FAIL_TESTS: &[(&str, &str, &str, &str, i32)] =
+    &[("stack_overflow\0", "\0", "\0", "\0", -11)];
 
 use user_lib::{exec, fork, waitpid};
 
@@ -65,7 +66,7 @@ fn run_tests(tests: &[(&str, &str, &str, &str, i32)]) -> i32 {
 
         let pid = fork();
         if pid == 0 {
-            exec(test.0);
+            exec(test.0, &arr);
             panic!("unreachable!");
         } else {
             let mut exit_code: i32 = Default::default();
