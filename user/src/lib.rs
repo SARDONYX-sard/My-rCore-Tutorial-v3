@@ -424,6 +424,13 @@ impl SignalFlags {
         SignalFlags::log_2(bits.bits())
     }
 
+    /// # Example
+    ///
+    /// 1 << 19 = 0000 0000 0000 1000 0000 0000 0000 0000
+    ///
+    /// leading_zeros => 12
+    ///
+    /// 32 - 12 - 1 = 19
     fn log_2(x: i32) -> u32 {
         (core::mem::size_of::<i32>() * 8) as u32 - x.leading_zeros() - 1
     }
