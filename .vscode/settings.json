@@ -127,10 +127,12 @@
     "unmap",
     "unmapping",
     "userspace",
+    "ustack",
     "vaddr",
     "Virt",
     "virtio",
     "waitpid",
+    "waittid",
     "WRONLY",
     "xstate"
   ],
