@@ -18,6 +18,8 @@ const SYSCALL_GETPID: usize = 172;
 const SYSCALL_FORK: usize = 220;
 const SYSCALL_EXEC: usize = 221;
 const SYSCALL_WAITPID: usize = 260;
+const SYSCALL_THREAD_CREATE: usize = 1000;
+const SYSCALL_WAITTID: usize = 1002;
 
 #[inline(always)]
 fn syscall(id: usize, args: [usize; 3]) -> isize {
@@ -345,4 +347,39 @@ pub fn sys_sigprocmask(mask: u32) -> isize {
 /// - Otherwise => -1
 pub fn sys_sigreturn() -> isize {
     syscall(SYSCALL_SIGRETURN, [0, 0, 0])
+}
+
+/// Current process creates a new thread.
+/// - syscall ID: 139
+///
+/// # Parameters
+/// - `entry`: The address of the entry function of the thread.
+/// - `arg`: The argument to the thread.
+///
+/// # Return
+/// new thread ID
+pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
+    syscall(SYSCALL_THREAD_CREATE, [entry, arg, 0])
+}
+
+/// Gets the status of whether the Thread with the specified ID is waiting or not.
+///
+/// If it is waiting, deletes the thread with the ID from the array of waiting threads and returns an exit code.
+/// - syscall ID: 139
+///
+/// # Parameter:
+/// - `tid`: thread id
+///
+/// # Return
+/// Conditional branching.
+/// - If the thread does not exist => -1
+/// - If the thread has not yet exited => -2
+/// - In other cases => The exit code of the ending thread
+///
+/// # Determining whether or not a thread is waiting
+/// 1. Is there a thread with the same Theard ID?
+/// 2. Is there a thread with that ID in the waiting thread array?
+/// 3. is the exit_code already stored in the internal thread information?
+pub fn sys_waittid(tid: usize) -> isize {
+    syscall(SYSCALL_WAITTID, [tid, 0, 0])
 }

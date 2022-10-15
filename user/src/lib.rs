@@ -514,3 +514,36 @@ pub fn sigprocmask(mask: u32) -> isize {
 pub fn sigreturn() -> isize {
     sys_sigreturn()
 }
+
+/// Current process creates a new thread.
+///
+/// # Parameters
+/// - `entry`: The address of the entry function of the thread.
+/// - `arg`: The argument to the thread.
+///
+/// # Return
+/// new thread ID
+pub fn thread_create(entry: usize, arg: usize) -> isize {
+    sys_thread_create(entry, arg)
+}
+
+/// Keep yielding and wait until the Thread with the ID specified in the argument closes.
+///
+/// # Parameter:
+/// - `tid`: thread id
+///
+/// # Return
+/// Conditional branching.
+/// - If the thread does not exist => -1
+/// - If the thread has not yet exited(-2) => call `yield` and wait
+/// - In other cases => The exit code of the ending thread
+pub fn waittid(tid: usize) -> isize {
+    loop {
+        match sys_waittid(tid) {
+            -2 => {
+                yield_();
+            }
+            exit_code => return exit_code,
+        }
+    }
+}
