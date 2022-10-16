@@ -2,8 +2,8 @@
 use crate::fs::{open_file, OpenFlags};
 use crate::mm::{translated_ref, translated_refmut, translated_str};
 use crate::task::{
-    add_task, current_task, current_user_token, exit_current_and_run_next, pid2task,
-    suspend_current_and_run_next, SignalAction, SignalFlags, MAX_SIG,
+    current_process, current_task, current_user_token, exit_current_and_run_next, pid2process,
+    suspend_current_and_run_next, SignalFlags,
 };
 use crate::timer::get_time_ms;
 use alloc::string::String;
@@ -34,9 +34,9 @@ pub fn sys_get_time() -> isize {
     get_time_ms() as isize
 }
 
-/// Get process identifier.
+/// Get process identifier from current thread.
 pub fn sys_getpid() -> isize {
-    current_task().unwrap().pid.0 as isize
+    current_task().unwrap().process.upgrade().unwrap().getpid() as isize
 }
 
 /// Create a child process with a new address space that inherits the stack of the parent process.
@@ -46,16 +46,16 @@ pub fn sys_getpid() -> isize {
 /// - If child process => 0
 /// - If current process => PID(Process Identifier) of child process
 pub fn sys_fork() -> isize {
-    let current_task = current_task().unwrap();
-    let new_task = current_task.fork();
-    let new_pid = new_task.pid.0;
+    let current_process = current_process();
+    let new_process = current_process.fork();
+    let new_pid = new_process.getpid();
     // modify trap context of new_task, because it returns immediately after switching
-    let trap_cx = new_task.inner_exclusive_access().get_trap_cx();
+    let new_process_inner = new_process.inner_exclusive_access();
+    let task = new_process_inner.tasks[0].as_ref().unwrap();
+    let trap_cx = task.inner_exclusive_access().get_trap_cx();
     // we do not have to move to next instruction since we have done it before
     // for child process, fork returns 0
     trap_cx.x[10] = 0; //x[10] is a0 register
-                       // add new task to scheduler
-    add_task(new_task);
     new_pid as isize
 }
 
@@ -89,9 +89,9 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
 
     if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
         let all_data = app_inode.read_all();
-        let task = current_task().unwrap();
+        let process = current_process();
         let argc = args_vec.len();
-        task.exec(all_data.as_slice(), args_vec);
+        process.exec(all_data.as_slice(), args_vec);
         // return argc because cx.x[10] will be covered with it later
         argc as isize
     } else {
@@ -113,7 +113,7 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
 /// - If there is a child process but it is still running => -2
 /// - Otherwise => The process ID of the terminated child process
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
-    let task = current_task().unwrap();
+    let task = current_process();
     // find a child process
 
     // ---- access current TCB exclusively
@@ -128,7 +128,7 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     }
     let pair = inner.children.iter().enumerate().find(|(_, p)| {
         // ++++ temporarily access child PCB lock exclusively
-        p.inner_exclusive_access().is_zombie() && (pid == -1 || pid as usize == p.getpid())
+        p.inner_exclusive_access().is_zombie && (pid == -1 || pid as usize == p.getpid())
         // ++++ release child PCB
     });
     if let Some((idx, _)) = pair {
@@ -169,7 +169,7 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
 /// in the signal of that process control block to 1.
 pub fn sys_kill(pid: usize, signum: i32) -> isize {
     // Extract corresponding task from process ID.
-    if let Some(task) = pid2task(pid) {
+    if let Some(task) = pid2process(pid) {
         if let Some(flag) = SignalFlags::from_bits(1 << signum) {
             // insert the signal if legal
             let inner = task.inner_exclusive_access();
@@ -185,116 +185,4 @@ pub fn sys_kill(pid: usize, signum: i32) -> isize {
     } else {
         -1
     }
-}
-
-/// Set signal to block
-///
-/// # Parameters
-/// - `mask`: signal mask
-///
-/// # Panic
-/// When casting mask to SignalFlags fails.
-///
-/// # Return
-/// Conditional branching.
-/// - When `signal_mask` is rewritten successfully => old `signal_mask`
-/// - Otherwise => -1
-pub fn sys_sigprocmask(mask: u32) -> isize {
-    if let Some(task) = current_task() {
-        let mut inner = task.inner_exclusive_access();
-        let old_mask = inner.signal_mask;
-        // ? Why not use `from_bits_truncates`?
-        // ? - https://github.com/bitflags/bitflags/blob/main/src/traits.rs#L33
-        if let Some(flag) = SignalFlags::from_bits(mask.try_into().unwrap()) {
-            inner.signal_mask = flag;
-            old_mask.bits() as isize
-        } else {
-            -1
-        }
-    } else {
-        -1
-    }
-}
-
-/// Set the signal being processed to -1 (none) and restoring a backup of a trap context.
-///
-///  # Information
-/// A recovery operation performed by the signal handler after it has finished responding to a signal,
-/// i.e., restoring the trap context saved by the operating system before responding to the signal,
-/// so that execution can continue from where the process was normally running before the signal was
-/// processed.
-///
-/// # Return
-/// Conditional branching.
-/// - Success to restore a backup of a trap context => 0
-/// - Otherwise => -1
-pub fn sys_sigreturn() -> isize {
-    if let Some(task) = current_task() {
-        let mut inner = task.inner_exclusive_access();
-        inner.handling_sig = -1;
-        // restore the trap context
-        let trap_ctx = inner.get_trap_cx();
-        *trap_ctx = inner.trap_ctx_backup.unwrap();
-        0
-    } else {
-        -1
-    }
-}
-
-/// - If `action` or `old_action` is 0,
-/// - or `signum` is `SIGKILL(1<<9)` or `SIGSTOP(1<<19)` ?
-fn check_sigaction_error(signal: SignalFlags, action: usize, old_action: usize) -> bool {
-    action == 0
-        || old_action == 0
-        || signal == SignalFlags::SIGKILL
-        || signal == SignalFlags::SIGSTOP
-}
-
-/// Registers a new handler (`action` argument) corresponding to the `signum` given as argument
-/// and writes the original handler to `old_action`.
-///
-/// # Parameters
-/// - `signum`: A signal bit digit corresponding to the process to be registered.
-/// - `action`: new signal processing configuration
-/// - `old_action`: old signal processing configuration
-///
-/// # Return
-/// Conditional branching.
-/// - If the `signum` and `action` arguments are successfully tied together => 0
-///
-/// - Failed to get the current task context => -1
-/// - If `signum` exceeds the bit digits of `MAX_SIG` => -1
-/// - If `action` or `old_action` is 0, or `signum` is `SIGKILL(1<<9)` or `SIGSTOP(1<<19)` => -1
-pub fn sys_sigaction(
-    signum: i32,
-    action: *const SignalAction,
-    old_action: *mut SignalAction,
-) -> isize {
-    let token = current_user_token();
-    if let Some(task) = current_task() {
-        let mut inner = task.inner_exclusive_access();
-        if signum as usize > MAX_SIG {
-            return -1;
-        }
-        if let Some(flag) = SignalFlags::from_bits(1 << signum) {
-            if check_sigaction_error(flag, action as usize, old_action as usize) {
-                return -1;
-            }
-            // 1. Store the address of the old signal handler in old_action.
-            let old_kernel_action = inner.signal_actions.table[signum as usize];
-
-            // - If `old_kernel_action` is `SIGILL(1<<4)` or `SIGABRT(1<<6)`?
-            if old_kernel_action.mask != SignalFlags::from_bits(40).unwrap() {
-                *translated_refmut(token, old_action) = old_kernel_action;
-            } else {
-                let mut ref_old_action = *translated_refmut(token, old_action);
-                ref_old_action.handler = old_kernel_action.handler;
-            }
-            // 2. Save the address of the new signal_handler in the TCB signal_actions.
-            let ref_action = translated_ref(token, action);
-            inner.signal_actions.table[signum as usize] = *ref_action;
-            return 0;
-        }
-    }
-    -1
 }

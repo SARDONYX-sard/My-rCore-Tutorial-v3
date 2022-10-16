@@ -13,11 +13,11 @@
 //! to [`syscall()`].
 mod context;
 
-use crate::config::{TRAMPOLINE, TRAP_CONTEXT};
+use crate::config::TRAMPOLINE;
 use crate::syscall::syscall;
 use crate::task::{
-    check_signals_error_of_current, current_add_signal, current_trap_cx, current_user_token,
-    exit_current_and_run_next, handle_signals, suspend_current_and_run_next, SignalFlags,
+    check_signals_of_current, current_add_signal, current_trap_cx, current_trap_cx_user_va,
+    current_user_token, exit_current_and_run_next, suspend_current_and_run_next, SignalFlags,
 };
 use crate::timer::set_next_trigger;
 use core::arch::{asm, global_asm};
@@ -119,10 +119,8 @@ pub fn trap_handler() -> ! {
         }
     }
 
-    // handle signals (handle the sent signal)
-    handle_signals();
     // check error signals (if error then exit)
-    if let Some((errno, msg)) = check_signals_error_of_current() {
+    if let Some((errno, msg)) = check_signals_of_current() {
         println!("[kernel] {}", msg);
         exit_current_and_run_next(errno);
     }
@@ -138,7 +136,7 @@ pub fn trap_handler() -> ! {
 pub fn trap_return() -> ! {
     // We allow applications to jump to `__alltraps` when trapping to Supervisor state.
     set_user_trap_entry();
-    let trap_cx_ptr = TRAP_CONTEXT;
+    let trap_cx_user_va = current_trap_cx_user_va();
     // Token in the application address space to continue execution.
     let user_satp = current_user_token();
     extern "C" {
@@ -191,10 +189,10 @@ pub fn trap_return() -> ! {
             // may have been used for data or other application code,
             // and the i-cache may still hold an incorrect snapshot of that physical page frame.
             "fence.i",
-            "jr {restore_va}",          // jump to new addr of `__restore` asm function
+            "jr {restore_va}",               // jump to new addr of `__restore` asm function
             restore_va = in(reg) restore_va,
-            in("a0") trap_cx_ptr,      // a0 = virtual address of Trap Context
-            in("a1") user_satp,        // a1 = physical address of usr page table
+            in("a0") trap_cx_user_va,        // a0 = virtual address of Trap Context
+            in("a1") user_satp,              // a1 = physical address of usr application's root node
             options(noreturn)
         );
     }
@@ -204,7 +202,9 @@ pub fn trap_return() -> ! {
 /// Unimplemented: traps/interrupts/exceptions from kernel mode
 /// Todo: Chapter 9: I/O device
 pub fn trap_from_kernel() -> ! {
-    todo!("a trap from kernel!");
+    use riscv::register::sepc;
+    println!("stval = {:#x}, sepc = {:#x}", stval::read(), sepc::read());
+    todo!("a trap {:?} from kernel!", scause::read().cause());
 }
 
 pub use context::TrapContext;

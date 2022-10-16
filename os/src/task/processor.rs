@@ -1,7 +1,8 @@
 //!Implementation of [`Processor`] and Intersection of control flow
 use super::__switch;
+use super::task::TaskControlBlock;
 use super::{fetch_task, TaskStatus};
-use super::{TaskContext, TaskControlBlock};
+use super::{ProcessControlBlock, TaskContext};
 use crate::sync::UPSafeCell;
 use crate::trap::TrapContext;
 use alloc::sync::Arc;
@@ -81,11 +82,15 @@ pub fn current_task() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().current()
 }
 
+/// Determine the process to which it belongs from task(thread) and return a reference to it.
+pub fn current_process() -> Arc<ProcessControlBlock> {
+    current_task().unwrap().process.upgrade().unwrap()
+}
+
 ///Get token of the address space of current task
 pub fn current_user_token() -> usize {
     let task = current_task().unwrap();
-    let token = task.inner_exclusive_access().get_user_token();
-    token
+    task.get_user_token()
 }
 
 ///Get the mutable reference to trap context of current task
@@ -94,6 +99,28 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
         .unwrap()
         .inner_exclusive_access()
         .get_trap_cx()
+}
+
+/// Calculate and return the starting trap context of user virtual address of current thread.
+///
+/// # Return
+/// The base address of trap context  of current thread
+pub fn current_trap_cx_user_va() -> usize {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .res
+        .as_ref()
+        .unwrap()
+        .trap_cx_user_va()
+}
+
+/// Get the top address of the kernel stack.
+///
+/// # Return
+/// The top address of the kernel stack
+pub fn current_kstack_top() -> usize {
+    current_task().unwrap().kstack.get_top()
 }
 
 ///Return to idle control flow for new scheduling
