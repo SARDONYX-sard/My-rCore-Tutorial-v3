@@ -1,32 +1,35 @@
-//! Copyright 2019 Carl Fredrik Samson
-//! MIT https://opensource.org/licenses/MIT
-
+// we porting below codes to Rcore Tutorial v3
+// https://cfsamson.gitbook.io/green-threads-explained-in-200-lines-of-rust/
+// https://github.com/cfsamson/example-greenthreads
 #![no_std]
 #![no_main]
 #![feature(naked_functions)]
 
 extern crate alloc;
-
-use alloc::vec;
-use alloc::vec::Vec;
-use core::arch::asm;
-
 #[macro_use]
 extern crate user_lib;
 
+use core::arch::asm;
+
+use alloc::vec;
+use alloc::vec::Vec;
+
 use user_lib::exit;
 
-/// In our simple example we set most constraints here.
-const DEFAULT_STACK_SIZE: usize = 1024;
+// In our simple example we set most constraints here.
+
+/// Default max stack size
+///
+///128 got  SEGFAULT, 256(1024, 4096) got right results.
+const DEFAULT_STACK_SIZE: usize = 4096;
 /// Maximum number of threads that can be started simultaneously
-const MAX_THREADS: usize = 4;
+const MAX_TASKS: usize = 4;
 /// Pointer to running thread. (default: null pointer == 0)
 static mut RUNTIME: usize = 0;
 
-/// Manager of running threads
 pub struct Runtime {
     /// Array of running threads.
-    threads: Vec<Thread>,
+    tasks: Vec<Task>,
     /// Current execution Thread ID.
     current: usize,
 }
@@ -41,98 +44,75 @@ enum State {
     Ready,
 }
 
-struct Thread {
+/// single thread
+struct Task {
     #[allow(unused)]
     id: usize,
     stack: Vec<u8>,
-    ctx: ThreadContext,
+    ctx: TaskContext,
     state: State,
 }
 
 #[derive(Debug, Default)]
 #[repr(C)] // not strictly needed but Rust ABI is not guaranteed to be stable
-struct ThreadContext {
-    /// Current instruction pointer(PC) of currently running thread
-    ra: usize,
-    /// kernel stack pointer of app
-    sp: usize,
-    /// callee saved registers:  s 0..11
-    s: [usize; 12],
-
-    ///new return address
-    nx1: usize,
+pub struct TaskContext {
+    // 15 u64
+    x1: u64,  //ra: return addres
+    x2: u64,  //sp
+    x8: u64,  //s0,fp
+    x9: u64,  //s1
+    x18: u64, //x18-27: s2-11
+    x19: u64,
+    x20: u64,
+    x21: u64,
+    x22: u64,
+    x23: u64,
+    x24: u64,
+    x25: u64,
+    x26: u64,
+    x27: u64,
+    nx1: u64, //new return addres
 }
 
-impl Thread {
-    /// Create the 2st~ thread
-    ///
-    /// Specifically, it has the following properties
-    /// - id: 1~
-    /// - state: Available
+impl Task {
     fn new(id: usize) -> Self {
         // We initialize each task here and allocate the stack. This is not necessary,
         // we can allocate memory for it later, but it keeps complexity down and lets us focus on more interesting parts
         // to do it here. The important part is that once allocated it MUST NOT move in memory.
-        Thread {
+        Task {
             id,
             stack: vec![0_u8; DEFAULT_STACK_SIZE],
-            ctx: ThreadContext::default(),
+            ctx: TaskContext::default(),
             state: State::Available,
-        }
-    }
-
-    /// Create the first thread
-    ///
-    /// Specifically, it has the following properties
-    /// - id: 0
-    /// - state: Running
-    fn init() -> Self {
-        Self {
-            id: 0,
-            stack: vec![0_u8; DEFAULT_STACK_SIZE],
-            ctx: ThreadContext::default(),
-            state: State::Running,
-        }
-    }
-}
-
-impl Default for Runtime {
-    fn default() -> Self {
-        // This will be our base task, which will be initialized in the `running` state
-        let base_task = Thread::init();
-        // We initialize the rest of our tasks.
-        let mut tasks = vec![base_task];
-        let mut available_tasks: Vec<Thread> = (1..MAX_THREADS).map(Thread::new).collect();
-        tasks.append(&mut available_tasks);
-
-        Self {
-            threads: tasks,
-            current: 0,
         }
     }
 }
 
 impl Runtime {
-    /// Create the first thread with id 0 and prepare as many threads as the maximum number of threads.
+    /// Create the 2st~ thread
+    ///
+    /// Specifically, it has the following properties
+    /// - id: 1~
+    /// - state: Available
     pub fn new() -> Self {
         // This will be our base task, which will be initialized in the `running` state
-        let base_task = Thread::init();
+        let base_task = Task {
+            id: 0,
+            stack: vec![0_u8; DEFAULT_STACK_SIZE],
+            ctx: TaskContext::default(),
+            state: State::Running,
+        };
 
         // We initialize the rest of our tasks.
         let mut tasks = vec![base_task];
-        let mut available_tasks: Vec<Thread> = (1..MAX_THREADS).map(Thread::new).collect();
+        let mut available_tasks: Vec<Task> = (1..MAX_TASKS).map(Task::new).collect();
         tasks.append(&mut available_tasks);
 
-        Runtime {
-            threads: tasks,
-            current: 0,
-        }
+        Runtime { tasks, current: 0 }
     }
 
     /// This is cheating a bit, but we need a pointer to our Runtime stored so we can call yield on it even if
     /// we don't have a reference to it.
-    ///
-    /// - Change static Runtime variable to usize
     pub fn init(&self) {
         unsafe {
             let r_ptr: *const Runtime = self;
@@ -142,8 +122,6 @@ impl Runtime {
 
     /// This is where we start running our runtime. If it is our base task, we call yield until
     /// it returns false (which means that there are no tasks scheduled) and we are done.
-    ///
-    /// - Keep yielding as long as any thread is in Ready state.
     pub fn run(&mut self) {
         while self.t_yield() {}
         println!("All tasks finished!");
@@ -152,12 +130,9 @@ impl Runtime {
     /// This is our return function. The only place we use this is in our `guard` function.
     /// If the current task is not our base task we set its state to Available. It means
     /// we're finished with it. Then we yield which will schedule a new task to be run.
-    ///
-    /// - Except for the first thread, the state is set to Available and yielded.
     fn t_return(&mut self) {
-        // Is not current thread init thread?
         if self.current != 0 {
-            self.threads[self.current].state = State::Available;
+            self.tasks[self.current].state = State::Available;
             self.t_yield();
         }
     }
@@ -169,15 +144,13 @@ impl Runtime {
     /// Then we call switch which will save the current context (the old context) and load the new context
     /// into the CPU which then resumes based on the context it was just passed.
     ///
-    /// # Return
-    /// Conditional branching.
-    ///
+    /// NOTICE: if we comment below `#[inline(never)]`, we can not get the corrent running result
+    #[inline(never)]
     fn t_yield(&mut self) -> bool {
         let mut pos = self.current;
-        // Find thread control block with status Ready
-        while self.threads[pos].state != State::Ready {
+        while self.tasks[pos].state != State::Ready {
             pos += 1;
-            if pos == self.threads.len() {
+            if pos == self.tasks.len() {
                 pos = 0;
             }
             if pos == self.current {
@@ -185,19 +158,16 @@ impl Runtime {
             }
         }
 
-        // Change old thread to Ready
-        if self.threads[self.current].state != State::Available {
-            self.threads[self.current].state = State::Ready;
+        if self.tasks[self.current].state != State::Available {
+            self.tasks[self.current].state = State::Ready;
         }
 
-        // Change new thread to Running
-        self.threads[pos].state = State::Running;
-        // change current ID
+        self.tasks[pos].state = State::Running;
         let old_pos = self.current;
         self.current = pos;
 
         unsafe {
-            switch(&mut self.threads[old_pos].ctx, &self.threads[pos].ctx);
+            switch(&mut self.tasks[old_pos].ctx, &self.tasks[pos].ctx);
         }
 
         // NOTE: this might look strange and it is. Normally we would just mark this as `unreachable!()` but our compiler
@@ -205,7 +175,7 @@ impl Runtime {
         // and not on linux. This is a common problem in tests so Rust has a `black_box` function in the `test` crate that
         // will "pretend" to use a value we give it to prevent the compiler from eliminating code. I'll just do this instead,
         // this code will never be run anyways and if it did it would always be `true`.
-        !self.threads.is_empty()
+        !self.tasks.is_empty()
     }
 
     /// While `yield` is the logically interesting function I think this the technically most interesting.
@@ -224,19 +194,15 @@ impl Runtime {
     /// executing that first when we are scheduled to run.
     ///
     /// Lastly we set the state as `Ready` which means we have work to do and is ready to do it.
-    ///
-    /// # Parameter
-    /// - `f`: Arbitrary function pointer to be executed.
     pub fn spawn(&mut self, f: fn()) {
         let available = self
-            .threads
+            .tasks
             .iter_mut()
             .find(|t| t.state == State::Available)
             .expect("no available task.");
 
         let size = available.stack.len();
         unsafe {
-            // get the pointer of stack vector last index address
             let s_ptr = available.stack.as_mut_ptr().add(size);
 
             // make sure our stack itself is 8 byte aligned - it will always
@@ -246,11 +212,17 @@ impl Runtime {
             // enough space to actually get an aligned pointer in the first place).
             let s_ptr = (s_ptr as usize & !7) as *mut u8;
 
-            available.ctx.ra = guard as usize; //ctx.x1  is old return address
-            available.ctx.nx1 = f as usize; //ctx.nx1 is new return address
-            available.ctx.sp = s_ptr.offset(-(size as isize)) as usize; //cxt.x2 is sp
+            available.ctx.x1 = guard as usize as u64; //ctx.x1  is old return address
+            available.ctx.nx1 = f as usize as u64; //ctx.nx2 is new return address
+            available.ctx.x2 = s_ptr.offset(-32) as u64; //cxt.x2 is sp
         }
         available.state = State::Ready;
+    }
+}
+
+impl Default for Runtime {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -281,7 +253,7 @@ pub fn yield_task() {
 ///
 /// Some details about inline assembly.
 ///
-/// The assembly commands in the string literal is called the assembly template. It is preceded by
+/// The assembly commands in the string literal is called the assembled template. It is preceded by
 /// zero or up to four segments indicated by ":":
 ///
 /// - First ":" we have our output parameters, this parameters that this function will return.
@@ -305,13 +277,11 @@ pub fn yield_task() {
 /// to as saved context and in general our assembly will not work as expected.
 ///
 /// see: https://github.com/rust-lang/rfcs/blob/master/text/1201-naked-fns.md
-///
-///
-/// Some registers (e.g., general registers) are saved by the calling function Caller and do not need
-/// to be saved by the calling function switch
-#[naked] // naked: Function disables prologue/epilogue issue.
-unsafe extern "C" fn switch(old: *mut ThreadContext, new: *const ThreadContext) {
-    // a0: old, a1: new
+/// see: https://doc.rust-lang.org/nightly/reference/inline-assembly.html
+/// see: https://doc.rust-lang.org/nightly/rust-by-example/unsafe/asm.html
+#[naked]
+unsafe extern "C" fn switch(old: *mut TaskContext, new: *const TaskContext) {
+    // a0: _old, a1: _new
     asm!(
         "
         sd x1, 0x00(a0)
@@ -329,6 +299,7 @@ unsafe extern "C" fn switch(old: *mut ThreadContext, new: *const ThreadContext) 
         sd x26, 0x60(a0)
         sd x27, 0x68(a0)
         sd x1, 0x70(a0)
+
         ld x1, 0x00(a1)
         ld x2, 0x08(a1)
         ld x8, 0x10(a1)
@@ -344,6 +315,7 @@ unsafe extern "C" fn switch(old: *mut ThreadContext, new: *const ThreadContext) 
         ld x26, 0x60(a1)
         ld x27, 0x68(a1)
         ld t0, 0x70(a1)
+
         jr t0
     ",
         options(noreturn)
@@ -351,14 +323,16 @@ unsafe extern "C" fn switch(old: *mut ThreadContext, new: *const ThreadContext) 
 }
 
 #[no_mangle]
-fn main() {
+pub fn main() {
+    println!("stackful_coroutine begin...");
+    println!("TASK  0(Runtime) STARTING");
     let mut runtime = Runtime::new();
     runtime.init();
     runtime.spawn(|| {
-        println!("TASK 1 STARTING");
+        println!("TASK  1 STARTING");
         let id = 1;
-        for i in 0..10 {
-            println!("task: {} counter: {}", id, i);
+        for i in 0..4 {
+            println!("task: {} counter: {}", id, i);
             yield_task();
         }
         println!("TASK 1 FINISHED");
@@ -366,12 +340,31 @@ fn main() {
     runtime.spawn(|| {
         println!("TASK 2 STARTING");
         let id = 2;
-        for i in 0..15 {
-            println!("task: {} counter: {}", id, i);
+        for i in 0..8 {
+            println!("task: {} counter: {}", id, i);
             yield_task();
         }
         println!("TASK 2 FINISHED");
     });
+    runtime.spawn(|| {
+        println!("TASK 3 STARTING");
+        let id = 3;
+        for i in 0..12 {
+            println!("task: {} counter: {}", id, i);
+            yield_task();
+        }
+        println!("TASK 3 FINISHED");
+    });
+    runtime.spawn(|| {
+        println!("TASK 4 STARTING");
+        let id = 4;
+        for i in 0..16 {
+            println!("task: {} counter: {}", id, i);
+            yield_task();
+        }
+        println!("TASK 4 FINISHED");
+    });
     runtime.run();
+    println!("stackful_coroutine PASSED");
     exit(0);
 }
