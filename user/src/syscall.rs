@@ -20,6 +20,9 @@ const SYSCALL_EXEC: usize = 221;
 const SYSCALL_WAITPID: usize = 260;
 const SYSCALL_THREAD_CREATE: usize = 1000;
 const SYSCALL_WAITTID: usize = 1002;
+const SYSCALL_MUTEX_CREATE: usize = 1010;
+const SYSCALL_MUTEX_LOCK: usize = 1011;
+const SYSCALL_MUTEX_UNLOCK: usize = 1012;
 
 #[inline(always)]
 fn syscall(id: usize, args: [usize; 3]) -> isize {
@@ -382,4 +385,45 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
 /// 3. is the exit_code already stored in the internal thread information?
 pub fn sys_waittid(tid: usize) -> isize {
     syscall(SYSCALL_WAITTID, [tid, 0, 0])
+}
+
+/// Create a new exclusion control.
+/// - syscall ID: 1010
+///
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Parameter
+/// - `blocking`: use `MutexBlocking`?
+///
+/// # Return
+/// Index of the lock list within one process of the created Mutex.
+pub fn sys_mutex_create(blocking: bool) -> isize {
+    syscall(SYSCALL_MUTEX_CREATE, [blocking as usize, 0, 0])
+}
+
+/// **Lock** the `Mutex` of the index specified by the argument from the lock management list (`self.mutex_list`)
+/// existing in the currently running process
+/// - syscall ID: 1011
+///
+/// # Parameter
+/// - `mutex_id`: Mutex index you want to **lock**
+///
+/// # Return
+/// always 0
+pub fn sys_mutex_lock(id: usize) -> isize {
+    syscall(SYSCALL_MUTEX_LOCK, [id, 0, 0])
+}
+
+/// **Unlock** the `Mutex` of the index specified by the argument from the lock management list (`self.mutex_list`)
+/// existing in the currently running process
+/// - syscall ID: 1012
+///
+/// # Parameter
+/// - `mutex_id`: Mutex index you want to **unlock**
+///
+/// # Return
+/// always 0
+pub fn sys_mutex_unlock(id: usize) -> isize {
+    syscall(SYSCALL_MUTEX_UNLOCK, [id, 0, 0])
 }
