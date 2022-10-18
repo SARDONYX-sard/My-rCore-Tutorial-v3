@@ -4,6 +4,7 @@
 #![no_std]
 #![no_main]
 #![feature(naked_functions)]
+#![feature(asm)]
 
 extern crate alloc;
 #[macro_use]
@@ -11,42 +12,30 @@ extern crate user_lib;
 
 use core::arch::asm;
 
+#[macro_use]
 use alloc::vec;
 use alloc::vec::Vec;
 
 use user_lib::exit;
 
 // In our simple example we set most constraints here.
-
-/// Default max stack size
-///
-///128 got  SEGFAULT, 256(1024, 4096) got right results.
-const DEFAULT_STACK_SIZE: usize = 4096;
-/// Maximum number of threads that can be started simultaneously
-const MAX_TASKS: usize = 4;
-/// Pointer to running thread. (default: null pointer == 0)
+const DEFAULT_STACK_SIZE: usize = 4096; //128 got  SEGFAULT, 256(1024, 4096) got right results.
+const MAX_TASKS: usize = 5;
 static mut RUNTIME: usize = 0;
 
 pub struct Runtime {
-    /// Array of running threads.
     tasks: Vec<Task>,
-    /// Current execution Thread ID.
     current: usize,
 }
 
 #[derive(PartialEq, Eq, Debug)]
 enum State {
-    /// Initial state: thread is idle and can be assigned a task to execute
     Available,
-    /// Running state: thread is running
     Running,
-    /// Ready state: thread is ready to resume execution
     Ready,
 }
 
-/// single thread
 struct Task {
-    #[allow(unused)]
     id: usize,
     stack: Vec<u8>,
     ctx: TaskContext,
@@ -76,7 +65,7 @@ pub struct TaskContext {
 
 impl Task {
     fn new(id: usize) -> Self {
-        // We initialize each task here and allocate the stack. This is not necessary,
+        // We initialize each task here and allocate the stack. This is not neccesary,
         // we can allocate memory for it later, but it keeps complexity down and lets us focus on more interesting parts
         // to do it here. The important part is that once allocated it MUST NOT move in memory.
         Task {
@@ -89,11 +78,6 @@ impl Task {
 }
 
 impl Runtime {
-    /// Create the 2st~ thread
-    ///
-    /// Specifically, it has the following properties
-    /// - id: 1~
-    /// - state: Available
     pub fn new() -> Self {
         // This will be our base task, which will be initialized in the `running` state
         let base_task = Task {
@@ -105,7 +89,7 @@ impl Runtime {
 
         // We initialize the rest of our tasks.
         let mut tasks = vec![base_task];
-        let mut available_tasks: Vec<Task> = (1..MAX_TASKS).map(Task::new).collect();
+        let mut available_tasks: Vec<Task> = (1..MAX_TASKS).map(|i| Task::new(i)).collect();
         tasks.append(&mut available_tasks);
 
         Runtime { tasks, current: 0 }
@@ -144,7 +128,7 @@ impl Runtime {
     /// Then we call switch which will save the current context (the old context) and load the new context
     /// into the CPU which then resumes based on the context it was just passed.
     ///
-    /// NOTICE: if we comment below `#[inline(never)]`, we can not get the corrent running result
+    /// NOITCE: if we comment below `#[inline(never)]`, we can not get the corrent running result
     #[inline(never)]
     fn t_yield(&mut self) -> bool {
         let mut pos = self.current;
@@ -175,7 +159,7 @@ impl Runtime {
         // and not on linux. This is a common problem in tests so Rust has a `black_box` function in the `test` crate that
         // will "pretend" to use a value we give it to prevent the compiler from eliminating code. I'll just do this instead,
         // this code will never be run anyways and if it did it would always be `true`.
-        !self.tasks.is_empty()
+        self.tasks.len() > 0
     }
 
     /// While `yield` is the logically interesting function I think this the technically most interesting.
@@ -191,7 +175,7 @@ impl Runtime {
     /// pass inn.
     ///
     /// Third, we set the value of `sp` which is the stack pointer to the address of our provided function so we start
-    /// executing that first when we are scheduled to run.
+    /// executing that first when we are scheuled to run.
     ///
     /// Lastly we set the state as `Ready` which means we have work to do and is ready to do it.
     pub fn spawn(&mut self, f: fn()) {
@@ -203,7 +187,7 @@ impl Runtime {
 
         let size = available.stack.len();
         unsafe {
-            let s_ptr = available.stack.as_mut_ptr().add(size);
+            let s_ptr = available.stack.as_mut_ptr().offset(size as isize);
 
             // make sure our stack itself is 8 byte aligned - it will always
             // offset to a lower memory address. Since we know we're at the "high"
@@ -212,17 +196,11 @@ impl Runtime {
             // enough space to actually get an aligned pointer in the first place).
             let s_ptr = (s_ptr as usize & !7) as *mut u8;
 
-            available.ctx.x1 = guard as usize as u64; //ctx.x1  is old return address
-            available.ctx.nx1 = f as usize as u64; //ctx.nx2 is new return address
+            available.ctx.x1 = guard as u64; //ctx.x1  is old return address
+            available.ctx.nx1 = f as u64; //ctx.nx2 is new return address
             available.ctx.x2 = s_ptr.offset(-32) as u64; //cxt.x2 is sp
         }
         available.state = State::Ready;
-    }
-}
-
-impl Default for Runtime {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -247,13 +225,13 @@ pub fn yield_task() {
 
 /// So here is our inline Assembly. As you remember from our first example this is just a bit more elaborate where we first
 /// read out the values of all the registers we need and then sets all the register values to the register values we
-/// saved when we suspended execution on the "new" task.
+/// saved when we suspended exceution on the "new" task.
 ///
 /// This is essentially all we need to do to save and resume execution.
 ///
 /// Some details about inline assembly.
 ///
-/// The assembly commands in the string literal is called the assembled template. It is preceded by
+/// The assembly commands in the string literal is called the assemblt template. It is preceeded by
 /// zero or up to four segments indicated by ":":
 ///
 /// - First ":" we have our output parameters, this parameters that this function will return.
@@ -262,7 +240,7 @@ pub fn yield_task() {
 /// - Third ":" This our clobber list, this is information to the compiler that these registers can't be used freely
 /// - Fourth ":" This is options we can pass inn, Rust has 3: "alignstack", "volatile" and "intel"
 ///
-/// For this to work on windows we need to use "alignstack" where the compiler adds the necessary padding to
+/// For this to work on windows we need to use "alignstack" where the compiler adds the neccesary padding to
 /// make sure our stack is aligned. Since we modify one of our inputs, our assembly has "side effects"
 /// therefore we should use the `volatile` option. I **think** this is actually set for us by default
 /// when there are no output parameters given (my own assumption after going through the source code)
@@ -270,7 +248,7 @@ pub fn yield_task() {
 ///
 /// One last important part (it will not work without this) is the #[naked] attribute. Basically this lets us have full
 /// control over the stack layout since normal functions has a prologue-and epilogue added by the
-/// compiler that will cause trouble for us. We avoid this by marking the function as "Naked".
+/// compiler that will cause trouble for us. We avoid this by marking the funtion as "Naked".
 /// For this to work on `release` builds we also need to use the `#[inline(never)] attribute or else
 /// the compiler decides to inline this function (curiously this currently only happens on Windows).
 /// If the function is inlined we get a curious runtime error where it fails when switching back
@@ -280,6 +258,7 @@ pub fn yield_task() {
 /// see: https://doc.rust-lang.org/nightly/reference/inline-assembly.html
 /// see: https://doc.rust-lang.org/nightly/rust-by-example/unsafe/asm.html
 #[naked]
+#[no_mangle]
 unsafe extern "C" fn switch(old: *mut TaskContext, new: *const TaskContext) {
     // a0: _old, a1: _new
     asm!(
@@ -332,7 +311,7 @@ pub fn main() {
         println!("TASK  1 STARTING");
         let id = 1;
         for i in 0..4 {
-            println!("task: {} counter: {}", id, i);
+            println!("task: {} counter: {}", id, i);
             yield_task();
         }
         println!("TASK 1 FINISHED");
@@ -341,7 +320,7 @@ pub fn main() {
         println!("TASK 2 STARTING");
         let id = 2;
         for i in 0..8 {
-            println!("task: {} counter: {}", id, i);
+            println!("task: {} counter: {}", id, i);
             yield_task();
         }
         println!("TASK 2 FINISHED");
@@ -350,7 +329,7 @@ pub fn main() {
         println!("TASK 3 STARTING");
         let id = 3;
         for i in 0..12 {
-            println!("task: {} counter: {}", id, i);
+            println!("task: {} counter: {}", id, i);
             yield_task();
         }
         println!("TASK 3 FINISHED");
@@ -359,7 +338,7 @@ pub fn main() {
         println!("TASK 4 STARTING");
         let id = 4;
         for i in 0..16 {
-            println!("task: {} counter: {}", id, i);
+            println!("task: {} counter: {}", id, i);
             yield_task();
         }
         println!("TASK 4 FINISHED");
