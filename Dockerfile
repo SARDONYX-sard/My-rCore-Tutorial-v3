@@ -13,11 +13,13 @@ ARG HOME=/root
 ARG DEBIAN_FRONTEND=noninteractive
 
 # python3=3.8.2-0ubuntu2: python3 3.8.10
+# gnupg2: for gpg commit
 # hadolint ignore=DL3008,DL3009,DL3015
 RUN apt-get update && \
     apt-get install -y \
     curl \
     git \
+    gnupg2 \
     neovim \
     python3=3.8.2-0ubuntu2 \
     tmux \
