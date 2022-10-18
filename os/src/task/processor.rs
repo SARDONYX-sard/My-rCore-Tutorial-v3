@@ -68,6 +68,8 @@ pub fn run_tasks() {
             unsafe {
                 __switch(idle_task_cx_ptr, next_task_cx_ptr);
             }
+        } else {
+            println!("no tasks available in run_tasks");
         }
     }
 }
