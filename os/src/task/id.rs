@@ -200,12 +200,12 @@ fn trap_cx_bottom_from_tid(tid: usize) -> usize {
 ///
 /// |  user address space  |                              |
 /// |----------------------|------------------------------|
-/// |   user stack base    | --high                       |
-/// |  UserStack of tid0   |                              |
-/// |      guard page      | __ Return this start address |
+/// |          ...         | --high                       |
 /// |  UserStack of tid1   |                              |
+/// |      guard page      | __ Return this start address |
+/// |  UserStack of tid0   |                              |
 /// |      guard page      |                              |
-/// |          ...         | __low                        |
+/// |   user stack base    | --low                       |
 fn ustack_bottom_from_tid(ustack_base: usize, tid: usize) -> usize {
     // base + thread ID * Guard page of previous thread + stack size of previous thread
     ustack_base + tid * (PAGE_SIZE + USER_STACK_SIZE)
