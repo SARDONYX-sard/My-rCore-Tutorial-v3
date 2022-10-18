@@ -194,7 +194,7 @@ impl ProcessControlBlock {
     pub fn exec(&self, elf_data: &[u8], args: Vec<String>) {
         assert_eq!(self.inner_exclusive_access().thread_count(), 1);
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, mut ustack_base, entry_point) = MemorySet::from_elf(elf_data);
+        let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
         let new_token = memory_set.token();
         // substitute memory_set
         self.inner_exclusive_access().memory_set = memory_set;
@@ -228,7 +228,7 @@ impl ProcessControlBlock {
         // Example(command aa bb)
         //
         // | HighAddr  |  byte |
-        // |-----------|-------|<-- user_sp(original)
+        // |-----------|-------|<-- user_sp(start)
         // |     0     | 8byte |
         // |  argv[1]  | 8byte |
         // |  argv[0]  | 8byte |___ argv_base
@@ -238,17 +238,17 @@ impl ProcessControlBlock {
         // |   '\0'    | 1byte |
         // |    'b'    | 1byte |
         // |    'b'    | 1byte |
-        // | Alignment |  byte |
-        // |-----------|-------|<-- user_sp(now)
+        // | Alignment |multi8 |
+        // |-----------|-------|<-- user_sp(now):L264
         // |  LowAddr  |       |
 
         // Actually load arguments onto the stack.
         *argv[args.len()] = 0;
         for i in 0..args.len() {
             // Shift the stack pointer by the length of the argument(command char)
-            ustack_base -= args[i].len() + 1;
-            *argv[i] = ustack_base;
-            let mut p = ustack_base;
+            user_sp -= args[i].len() + 1;
+            *argv[i] = user_sp;
+            let mut p = user_sp;
             for c in args[i].as_bytes() {
                 // Put 8 bits of data (1 character) into the current stack pointer(p).
                 *translated_refmut(new_token, p as *mut u8) = *c;
@@ -261,12 +261,12 @@ impl ProcessControlBlock {
         // Due to the different lengths of the command line arguments, pushing user_sp will likely
         // not align to 8 bytes and will cause an unaligned access exception when accessing the user
         // stack, so alignment adjustments should be made.
-        ustack_base -= ustack_base % core::mem::size_of::<usize>();
+        user_sp -= user_sp % core::mem::size_of::<usize>();
 
         // initialize trap_cx
         let mut trap_cx = TrapContext::app_init_context(
             entry_point,
-            ustack_base,
+            user_sp,
             KERNEL_SPACE.exclusive_access().token(),
             task.kstack.get_top(),
             trap_handler as usize,
@@ -292,8 +292,8 @@ impl ProcessControlBlock {
         let mut new_fd_table: Vec<Option<Arc<dyn File + Send + Sync>>> = Vec::new();
         for fd in parent.fd_table.iter() {
             //? Can't we just push without using `if let`?
-            if let Some(fd) = fd {
-                new_fd_table.push(Some(fd.clone()));
+            if let Some(file) = fd {
+                new_fd_table.push(Some(file.clone()));
             } else {
                 new_fd_table.push(None);
             }
