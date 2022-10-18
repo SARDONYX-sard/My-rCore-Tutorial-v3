@@ -125,7 +125,7 @@ pub fn current_kstack_top() -> usize {
     current_task().unwrap().kstack.get_top()
 }
 
-///Return to idle control flow for new scheduling
+/// Stops the task in the task context passed as the argument (currently running task) and switches to another task that is idle.
 pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
     let mut processor = PROCESSOR.exclusive_access();
     let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
