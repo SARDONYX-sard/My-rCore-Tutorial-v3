@@ -6,7 +6,7 @@ use super::{add_task, SignalFlags};
 use super::{pid_alloc, PidHandle};
 use crate::fs::{File, Stdin, Stdout};
 use crate::mm::{translated_refmut, MemorySet, KERNEL_SPACE};
-use crate::sync::UPSafeCell;
+use crate::sync::{Mutex, UPSafeCell};
 use crate::trap::{trap_handler, TrapContext};
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
@@ -62,6 +62,8 @@ pub struct ProcessControlBlockInner {
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     /// Relatively generic resource allocator that can allocate process identifiers (PIDs) and thread KernelStacks.
     pub task_res_allocator: RecycleAllocator,
+    /// List of all lock flag management structures present in one process.
+    pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
 }
 
 impl ProcessControlBlockInner {
@@ -152,6 +154,7 @@ impl ProcessControlBlock {
                     signals: SignalFlags::empty(),
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
+                    mutex_list: Vec::new(),
                 })
             },
         });
@@ -313,6 +316,7 @@ impl ProcessControlBlock {
                     signals: SignalFlags::empty(),
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
+                    mutex_list: Vec::new(),
                 })
             },
         });

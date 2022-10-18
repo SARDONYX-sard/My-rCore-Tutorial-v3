@@ -547,3 +547,47 @@ pub fn waittid(tid: usize) -> isize {
         }
     }
 }
+
+/// Create a new exclusion control.
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Return
+/// Index of the lock list within one process of the created Mutex.
+pub fn mutex_create() -> isize {
+    sys_mutex_create(false)
+}
+
+/// Create a new exclusion blocking control.
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Return
+/// Index of the lock list within one process of the created Mutex.
+pub fn mutex_blocking_create() -> isize {
+    sys_mutex_create(true)
+}
+
+/// **Lock** the `Mutex` of the index specified by the argument from the lock management list (`self.mutex_list`)
+/// existing in the currently running process
+///
+/// # Parameter
+/// - `mutex_id`: Mutex index you want to **lock**
+///
+/// # Return
+/// always 0
+pub fn mutex_lock(mutex_id: usize) {
+    sys_mutex_lock(mutex_id);
+}
+
+/// **Unlock** the `Mutex` of the index specified by the argument from the lock management list (`self.mutex_list`)
+/// existing in the currently running process
+///
+/// # Parameter
+/// - `mutex_id`: Mutex index you want to **unlock**
+///
+/// # Return
+/// always 0
+pub fn mutex_unlock(mutex_id: usize) {
+    sys_mutex_unlock(mutex_id);
+}
