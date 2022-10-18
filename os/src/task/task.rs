@@ -106,6 +106,5 @@ impl TaskControlBlock {
 pub enum TaskStatus {
     Ready,
     Running,
-    #[allow(unused)]
     Blocking,
 }
