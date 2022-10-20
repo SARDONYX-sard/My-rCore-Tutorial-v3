@@ -327,6 +327,10 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     }
 }
 
+/// Call `yield` for the milliseconds given in the `period_ms` argument.
+///
+/// # Parameter
+/// - `period_ms`: Milliseconds to sleep
 pub fn sleep(period_ms: usize) {
     let start = sys_get_time();
     while sys_get_time() < start + period_ms as isize {
