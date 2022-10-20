@@ -18,7 +18,7 @@ jobs:
     steps:
       - id: SET_PARAMS
         run: |
-          echo "::set-output name=TOOL_CHAIN::$TOOL_CHAIN"
+          echo "TOOL_CHAIN=$TOOL_CHAIN" >> $GITHUB_OUTPUT
 
   setup:
     name: Setup
