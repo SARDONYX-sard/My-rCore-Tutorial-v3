@@ -6,7 +6,7 @@ use super::{add_task, SignalFlags};
 use super::{pid_alloc, PidHandle};
 use crate::fs::{File, Stdin, Stdout};
 use crate::mm::{translated_refmut, MemorySet, KERNEL_SPACE};
-use crate::sync::{Mutex, UPSafeCell};
+use crate::sync::{Mutex, Semaphore, UPSafeCell};
 use crate::trap::{trap_handler, TrapContext};
 use alloc::string::String;
 use alloc::sync::{Arc, Weak};
@@ -64,6 +64,8 @@ pub struct ProcessControlBlockInner {
     pub task_res_allocator: RecycleAllocator,
     /// List of all lock flag management structures present in one process.
     pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
+    /// List of structures with semaphore-based exclusion control within a single process
+    pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
 }
 
 impl ProcessControlBlockInner {
@@ -155,6 +157,7 @@ impl ProcessControlBlock {
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
                     mutex_list: Vec::new(),
+                    semaphore_list: Vec::new(),
                 })
             },
         });
@@ -317,6 +320,7 @@ impl ProcessControlBlock {
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
                     mutex_list: Vec::new(),
+                    semaphore_list: Vec::new(),
                 })
             },
         });
