@@ -54,7 +54,7 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
 ///
 /// If it is waiting, deletes the thread with the ID from the array of waiting threads and returns an exit code.
 ///
-/// # Parameter:
+/// # Parameter
 /// - `tid`: thread id
 ///
 /// # Return
