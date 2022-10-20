@@ -519,7 +519,7 @@ pub fn sigreturn() -> isize {
     sys_sigreturn()
 }
 
-/// Current process creates a new thread.
+/// Current process creates a new thread, and add the created thread to the task queue.
 ///
 /// # Parameters
 /// - `entry`: The address of the entry function of the thread.
