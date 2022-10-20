@@ -14,6 +14,7 @@ use user_lib::{sleep, thread_create, waittid};
 const SEM_SYNC: usize = 0;
 
 unsafe fn first() -> ! {
+    // This thread is added to the task queue first, but let it sleep so that the second thread is processed first.
     sleep(10);
     println!("First work and wakeup Second");
     semaphore_up(SEM_SYNC);
