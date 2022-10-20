@@ -37,12 +37,23 @@ impl Semaphore {
     /// - Semaphores restricted to values 0 and 1 (or locked/unlocked, disabled/enabled).
     /// - Provide similar functionality to `Mutex`.
     ///
+    /// ## Semaphore for synchronization purpose(`res_count` == 0):
+    /// - If 0, calling up will always add to the task queue, and calling down will always cause the thread to wait.
+    ///   This mechanism allows synchronization of common variables of threads.
+    ///
     /// # Return
     /// Created semaphore
     ///
     /// # Example
     /// ```rust
+    /// /// As `Counting Semaphores`
     /// let semaphore = Semaphore::new(2);
+    ///
+    /// /// As `Mutex`
+    /// let mutex_semaphore = Semaphore::new(1);
+    ///
+    /// /// For `Sync Threads`
+    /// let mutex_semaphore = Semaphore::new(0);
     /// ```
     pub fn new(res_count: usize) -> Self {
         Self {
