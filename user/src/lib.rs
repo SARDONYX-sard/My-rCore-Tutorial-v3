@@ -327,6 +327,10 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     }
 }
 
+/// Call `yield` for the milliseconds given in the `period_ms` argument.
+///
+/// # Parameter
+/// - `period_ms`: Milliseconds to sleep
 pub fn sleep(period_ms: usize) {
     let start = sys_get_time();
     while sys_get_time() < start + period_ms as isize {
@@ -515,7 +519,7 @@ pub fn sigreturn() -> isize {
     sys_sigreturn()
 }
 
-/// Current process creates a new thread.
+/// Current process creates a new thread, and add the created thread to the task queue.
 ///
 /// # Parameters
 /// - `entry`: The address of the entry function of the thread.
@@ -529,7 +533,7 @@ pub fn thread_create(entry: usize, arg: usize) -> isize {
 
 /// Keep yielding and wait until the Thread with the ID specified in the argument closes.
 ///
-/// # Parameter:
+/// # Parameter
 /// - `tid`: thread id
 ///
 /// # Return
@@ -590,4 +594,71 @@ pub fn mutex_lock(mutex_id: usize) {
 /// always 0
 pub fn mutex_unlock(mutex_id: usize) {
     sys_mutex_unlock(mutex_id);
+}
+
+/// Create a new exclusion control.
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Parameter
+/// - `res_count`:Number of threads with concurrent access to shared resources.
+///
+/// ## Counting(General) semaphores (`res_count` >= 2):
+/// - Allow multiple threads with a maximum of `res_count` to access critical sections simultaneously
+///
+/// ## Binary semaphores(`res_count` == 1):
+/// - Only one thread has access to the critical section.
+/// - Semaphores restricted to values 0 and 1 (or locked/unlocked, disabled/enabled).
+/// - Provide similar functionality to `Mutex`.
+///
+/// ## Semaphore for synchronization purpose(`res_count` == 0):
+/// - If 0, calling up will always add to the task queue, and calling down will always cause the thread to wait.
+///   This mechanism allows synchronization of common variables of threads.
+///
+/// # Return
+/// Index of the lock list within one process of the created `Semaphore`.
+///
+/// # Example
+/// ```rust
+/// /// As `Counting Semaphores`
+/// let semaphore = Semaphore::new(2);
+///
+/// /// As `Mutex`
+/// let mutex_semaphore = Semaphore::new(1);
+///
+/// /// For `Sync Threads`
+/// let mutex_semaphore = Semaphore::new(0);
+/// ```
+pub fn semaphore_create(res_count: usize) -> isize {
+    sys_semaphore_create(res_count)
+}
+
+/// # V (Verhogen (Dutch), increase) operation
+/// Increment semaphores(`self.count`)
+///
+/// If `self.count` is less than or equal to 0, a waiting thread is popped
+/// from the top of the queue and added to the task queue (for the task to be executed).
+///
+/// # parameter
+/// - `sem_id`: Semaphore ID(Index of the lock list within one process of the created `Semaphore`.)
+///
+/// # Return
+/// always 0
+pub fn semaphore_up(sem_id: usize) {
+    sys_semaphore_up(sem_id);
+}
+
+/// # P (Proberen (Dutch), try) operation
+/// Decrement semaphores(`self.count`)
+///
+/// If `self.count` is less than 0, the currently running thread is added to the
+/// end of `self.wait_queue` and continues waiting for the lock to be released in the `Blocking` state.
+///
+/// # parameter
+/// - `sem_id`: Semaphore ID(Index of the lock list within one process of the created `Semaphore`.)
+///
+/// # Return
+/// always 0
+pub fn semaphore_down(sem_id: usize) {
+    sys_semaphore_down(sem_id);
 }

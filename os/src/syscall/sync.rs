@@ -1,4 +1,4 @@
-use crate::sync::{Mutex, MutexBlocking, MutexSpin};
+use crate::sync::{Mutex, MutexBlocking, MutexSpin, Semaphore};
 use crate::task::current_process;
 use alloc::sync::Arc;
 
@@ -71,5 +71,100 @@ pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
     drop(process_inner);
     drop(process);
     mutex.unlock();
+    0
+}
+
+/// Create a new exclusion control.
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Parameter
+/// - `res_count`:Number of threads with concurrent access to shared resources.
+///
+/// ## Counting(General) semaphores (`res_count` >= 2):
+/// - Allow multiple threads with a maximum of `res_count` to access critical sections simultaneously
+///
+/// ## Binary semaphores(`res_count` == 1):
+/// - Only one thread has access to the critical section.
+/// - Semaphores restricted to values 0 and 1 (or locked/unlocked, disabled/enabled).
+/// - Provide similar functionality to `Mutex`.
+///
+/// ## Semaphore for synchronization purpose(`res_count` == 0):
+/// - If 0, calling up will always add to the task queue, and calling down will always cause the thread to wait.
+///   This mechanism allows synchronization of common variables of threads.
+///
+/// # Return
+/// Index of the lock list within one process of the created `Semaphore`.
+///
+/// # Example
+/// ```rust
+/// /// As `Counting Semaphores`
+/// let semaphore = Semaphore::new(2);
+///
+/// /// As `Mutex`
+/// let mutex_semaphore = Semaphore::new(1);
+///
+/// /// For `Sync Threads`
+/// let mutex_semaphore = Semaphore::new(0);
+/// ```
+pub fn sys_semaphore_create(res_count: usize) -> isize {
+    let process = current_process();
+    let mut process_inner = process.inner_exclusive_access();
+    let id = if let Some(id) = process_inner
+        .semaphore_list
+        .iter()
+        .enumerate()
+        .find(|(_, item)| item.is_none())
+        .map(|(id, _)| id)
+    {
+        process_inner.semaphore_list[id] = Some(Arc::new(Semaphore::new(res_count)));
+        id
+    } else {
+        process_inner
+            .semaphore_list
+            .push(Some(Arc::new(Semaphore::new(res_count))));
+        process_inner.semaphore_list.len() - 1
+    };
+    id as isize
+}
+
+/// # V (Verhogen (Dutch), increase) operation
+/// Increment semaphores(`self.count`)
+///
+///
+/// If `self.count` is less than or equal to 0, a waiting thread is popped
+/// from the top of the queue and added to the task queue (for the task to be executed).
+///
+/// # parameter
+/// - `sem_id`: Semaphore ID(Index of the lock list within one process of the created `Semaphore`.)
+///
+/// # Return
+/// always 0
+pub fn sys_semaphore_up(sem_id: usize) -> isize {
+    let process = current_process();
+    let process_inner = process.inner_exclusive_access();
+    let sem = Arc::clone(process_inner.semaphore_list[sem_id].as_ref().unwrap());
+    drop(process_inner);
+    sem.up();
+    0
+}
+
+/// # P (Proberen (Dutch), try) operation
+/// Decrement semaphores(`self.count`)
+///
+/// If `self.count` is less than 0, the currently running thread is added to the
+/// end of `self.wait_queue` and continues waiting for the lock to be released in the `Blocking` state.
+///
+/// # parameter
+/// - `sem_id`: Semaphore ID(Index of the lock list within one process of the created `Semaphore`.)
+///
+/// # Return
+/// always 0
+pub fn sys_semaphore_down(sem_id: usize) -> isize {
+    let process = current_process();
+    let process_inner = process.inner_exclusive_access();
+    let sem = Arc::clone(process_inner.semaphore_list[sem_id].as_ref().unwrap());
+    drop(process_inner);
+    sem.down();
     0
 }

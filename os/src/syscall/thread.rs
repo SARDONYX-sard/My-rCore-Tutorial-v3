@@ -4,7 +4,9 @@ use crate::{
     trap::{trap_handler, TrapContext},
 };
 use alloc::sync::Arc;
-/// Current process creates a new thread.
+
+/// Current process creates a new thread, and add the created thread to the task queue.
+///
 ///
 /// # Parameters
 /// - `entry`: The address of the entry function of the thread.
@@ -54,7 +56,7 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
 ///
 /// If it is waiting, deletes the thread with the ID from the array of waiting threads and returns an exit code.
 ///
-/// # Parameter:
+/// # Parameter
 /// - `tid`: thread id
 ///
 /// # Return
