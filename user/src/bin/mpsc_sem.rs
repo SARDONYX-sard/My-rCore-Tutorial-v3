@@ -34,7 +34,7 @@ const NUMBER_PER_PRODUCER: usize = 100;
 unsafe fn producer(id: *const usize) -> ! {
     let id = *id;
     for _ in 0..NUMBER_PER_PRODUCER {
-        semaphore_down(SEM_EMPTY); // 1st producer: 8 + 1 -> - 92, 2nd: -93 -> -192, 3rd: -193 ~ -202, 4th: -203 ~ -302
+        semaphore_down(SEM_EMPTY); // 1st producer: 8 - 1 -> - 92, 2nd: -93 -> -192, 3rd: -193 ~ -202, 4th: -203 ~ -302
         semaphore_down(SEM_MUTEX); // set 0 == lock
         BUFFER[FRONT] = id;
         FRONT = (FRONT + 1) % BUFFER_SIZE;
