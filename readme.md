@@ -20,7 +20,7 @@ RISC-V OS written in Rust
 
 - [x] InterProcess Communication and I/O Redirection
 
-- [ ] Concurrency
+- [x] Concurrency
 
 - [ ] I/O Device Management
 
