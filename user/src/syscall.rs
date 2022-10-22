@@ -26,6 +26,9 @@ const SYSCALL_MUTEX_UNLOCK: usize = 1012;
 const SYSCALL_SEMAPHORE_CREATE: usize = 1020;
 const SYSCALL_SEMAPHORE_UP: usize = 1021;
 const SYSCALL_SEMAPHORE_DOWN: usize = 1022;
+const SYSCALL_CONDVAR_CREATE: usize = 1030;
+const SYSCALL_CONDVAR_SIGNAL: usize = 1031;
+const SYSCALL_CONDVAR_WAIT: usize = 1032;
 
 #[inline(always)]
 fn syscall(id: usize, args: [usize; 3]) -> isize {
@@ -500,4 +503,55 @@ pub fn sys_semaphore_up(sem_id: usize) -> isize {
 /// always 0
 pub fn sys_semaphore_down(sem_id: usize) -> isize {
     syscall(SYSCALL_SEMAPHORE_DOWN, [sem_id, 0, 0])
+}
+
+/// Create Exclusive Control with Conditional Variable.
+/// - syscall ID: 1030
+///
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Parameter
+/// - `_arg`: unused value
+///
+/// # Return
+/// Index of the lock list within one process of the created `Condvar`.
+pub fn sys_condvar_create(_arg: usize) -> isize {
+    syscall(SYSCALL_CONDVAR_CREATE, [_arg, 0, 0])
+}
+
+/// Takes one thread from the head of the waiting thread queue and adds it to the task queue.
+/// - syscall ID: 1031
+///
+/// By resuming the thread with this method, the **`lock`** method of `Mutex` given the
+/// `Condvar.wait` method is finally called.
+///
+/// # parameter
+/// - `condvar_id`: Condvar ID(Index of the lock list within one process of the created `Condvar`.)
+///
+/// # Return
+/// Always 0
+pub fn sys_condvar_signal(condvar_id: usize) -> isize {
+    syscall(SYSCALL_CONDVAR_SIGNAL, [condvar_id, 0, 0])
+}
+
+/// Wait until the lock is obtained in the following order.
+/// - syscall ID: 1032
+///
+/// 1. call the **`unlock`** method of `Mutex` given as the `mutex` argument.
+///
+/// 2. add the currently running thread to the end of the waiting thread queue,
+///    and keep that thread waiting with blocking.
+/// <br>
+/// 3. **When it is added to the task queue by `Condvar.signal`**,
+///    finally call the **`lock`** method of `Mutex` given as the `mutex_id` argument.
+///
+/// # parameters
+/// - `condvar_id`: Condvar ID(Index of the lock list within one process of the created `Condvar`.)
+/// - `mutex_id`: Mutex ID(Index of the lock list within one process of the created `Mutex`.)
+///
+/// # Return
+/// Always 0
+pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
+    syscall(SYSCALL_CONDVAR_WAIT, [condvar_id, mutex_id, 0])
 }

@@ -1,4 +1,4 @@
-use crate::sync::{Mutex, MutexBlocking, MutexSpin, Semaphore};
+use crate::sync::{Condvar, Mutex, MutexBlocking, MutexSpin, Semaphore};
 use crate::task::current_process;
 use alloc::sync::Arc;
 
@@ -166,5 +166,82 @@ pub fn sys_semaphore_down(sem_id: usize) -> isize {
     let sem = Arc::clone(process_inner.semaphore_list[sem_id].as_ref().unwrap());
     drop(process_inner);
     sem.down();
+    0
+}
+
+/// Create Exclusive Control with Conditional Variable.
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Parameter
+/// - `_arg`: unused value
+///
+/// # Return
+/// Index of the lock list within one process of the created `Condvar`.
+pub fn sys_condvar_create(_arg: usize) -> isize {
+    let process = current_process();
+    let mut process_inner = process.inner_exclusive_access();
+
+    // Reuse condvar
+    let id = if let Some(id) = process_inner
+        .condvar_list
+        .iter()
+        .enumerate()
+        .find(|(_, item)| item.is_none())
+        .map(|(id, _)| id)
+    {
+        process_inner.condvar_list[id] = Some(Arc::new(Condvar::new()));
+        id
+    } else {
+        process_inner
+            .condvar_list
+            .push(Some(Arc::new(Condvar::new())));
+        process_inner.condvar_list.len() - 1
+    };
+    id as isize
+}
+
+/// Takes one thread from the head of the waiting thread queue and adds it to the task queue.
+///
+/// By resuming the thread with this method, the **`lock`** method of `Mutex` given the
+/// `Condvar.wait` method is finally called.
+///
+/// # parameter
+/// - `condvar_id`: Condvar ID(Index of the lock list within one process of the created `Condvar`.)
+///
+/// # Return
+/// Always 0
+pub fn sys_condvar_signal(condvar_id: usize) -> isize {
+    let process = current_process();
+    let process_inner = process.inner_exclusive_access();
+    let condvar = Arc::clone(process_inner.condvar_list[condvar_id].as_ref().unwrap());
+    drop(process_inner);
+    condvar.signal();
+    0
+}
+
+/// Wait until the lock is obtained in the following order.
+///
+/// 1. call the **`unlock`** method of `Mutex` given as the `mutex` argument.
+///
+/// 2. add the currently running thread to the end of the waiting thread queue,
+///    and keep that thread waiting with blocking.
+/// <br>
+/// 3. **When it is added to the task queue by `Condvar.signal`**,
+///    finally call the **`lock`** method of `Mutex` given as the `mutex_id` argument.
+///
+/// # parameters
+/// - `condvar_id`: Condvar ID(Index of the lock list within one process of the created `Condvar`.)
+/// - `mutex_id`: Mutex ID(Index of the lock list within one process of the created `Mutex`.)
+///
+/// # Return
+/// Always 0
+pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
+    let process = current_process();
+    let process_inner = process.inner_exclusive_access();
+    let condvar = Arc::clone(process_inner.condvar_list[condvar_id].as_ref().unwrap());
+    let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
+    drop(process_inner);
+    condvar.wait(mutex);
     0
 }
