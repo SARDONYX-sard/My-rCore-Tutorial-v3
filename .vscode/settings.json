@@ -1,4 +1,7 @@
 {
+  "[jsonc]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
   "[markdown]": {
     "editor.codeActionsOnSave": {
       "source.fixAll.markdownlint": true
@@ -24,6 +27,8 @@
     "binutils",
     "bitflags",
     "clippy",
+    "cmdline",
+    "condvar",
     "csrw",
     "dccache",
     "dealloc",
@@ -36,6 +41,7 @@
     "etext",
     "filea",
     "fileb",
+    "Fredrik",
     "GETCHAR",
     "getpid",
     "icache",
@@ -52,8 +58,10 @@
     "noreturn",
     "objcopy",
     "ppid",
+    "Proberen",
     "putchar",
     "RAII",
+    "Rcore",
     "RDONLY",
     "RDWR",
     "refmut",
@@ -108,12 +116,14 @@
     "srodata",
     "sscratch",
     "sstatus",
+    "stackful",
     "stext",
     "stie",
     "stimer",
     "strampoline",
     "stval",
     "stvec",
+    "SUCC",
     "syscall",
     "syscalls",
     "trapframe",
@@ -124,10 +134,15 @@
     "unmap",
     "unmapping",
     "userspace",
+    "ustack",
     "vaddr",
+    "Verhogen",
     "Virt",
     "virtio",
+    "vtable",
     "waitpid",
+    "waittid",
+    "wakeup",
     "WRONLY",
     "xstate"
   ],

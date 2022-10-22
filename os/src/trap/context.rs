@@ -40,6 +40,16 @@ impl TrapContext {
     }
 
     /// init app context
+    ///
+    /// # Parameters
+    /// - `entry`:
+    /// - `kernel_satp`: root node of the physical page table number for each application allocated in kernel space
+    /// - `kernel_sp`: Top of the stack by application
+    /// - `trap_handler` : Pointer to the function that performs trap processing.
+    ///                    Normally, every application passes the function defined in the same `trap::trap_handler`.
+    ///
+    /// # Return
+    /// Created structure.
     pub fn app_init_context(
         entry: usize,
         sp: usize,

@@ -327,6 +327,10 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     }
 }
 
+/// Call `yield` for the milliseconds given in the `period_ms` argument.
+///
+/// # Parameter
+/// - `period_ms`: Milliseconds to sleep
 pub fn sleep(period_ms: usize) {
     let start = sys_get_time();
     while sys_get_time() < start + period_ms as isize {
@@ -424,6 +428,13 @@ impl SignalFlags {
         SignalFlags::log_2(bits.bits())
     }
 
+    /// # Example
+    ///
+    /// 1 << 19 = 0000 0000 0000 1000 0000 0000 0000 0000
+    ///
+    /// leading_zeros => 12
+    ///
+    /// 32 - 12 - 1 = 19
     fn log_2(x: i32) -> u32 {
         (core::mem::size_of::<i32>() * 8) as u32 - x.leading_zeros() - 1
     }
@@ -506,4 +517,192 @@ pub fn sigprocmask(mask: u32) -> isize {
 /// - Otherwise => -1
 pub fn sigreturn() -> isize {
     sys_sigreturn()
+}
+
+/// Current process creates a new thread, and add the created thread to the task queue.
+///
+/// # Parameters
+/// - `entry`: The address of the entry function of the thread.
+/// - `arg`: The argument to the thread.
+///
+/// # Return
+/// new thread ID
+pub fn thread_create(entry: usize, arg: usize) -> isize {
+    sys_thread_create(entry, arg)
+}
+
+/// Keep yielding and wait until the Thread with the ID specified in the argument closes.
+///
+/// # Parameter
+/// - `tid`: thread id
+///
+/// # Return
+/// Conditional branching.
+/// - If the thread does not exist => -1
+/// - If the thread has not yet exited(-2) => call `yield` and wait
+/// - In other cases => The exit code of the ending thread
+pub fn waittid(tid: usize) -> isize {
+    loop {
+        match sys_waittid(tid) {
+            -2 => {
+                yield_();
+            }
+            exit_code => return exit_code,
+        }
+    }
+}
+
+/// Create a new exclusion control.
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Return
+/// Index of the lock list within one process of the created Mutex.
+pub fn mutex_create() -> isize {
+    sys_mutex_create(false)
+}
+
+/// Create a new exclusion blocking control.
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Return
+/// Index of the lock list within one process of the created Mutex.
+pub fn mutex_blocking_create() -> isize {
+    sys_mutex_create(true)
+}
+
+/// **Lock** the `Mutex` of the index specified by the argument from the lock management list (`self.mutex_list`)
+/// existing in the currently running process
+///
+/// # Parameter
+/// - `mutex_id`: Mutex index you want to **lock**
+///
+/// # Return
+/// always 0
+pub fn mutex_lock(mutex_id: usize) {
+    sys_mutex_lock(mutex_id);
+}
+
+/// **Unlock** the `Mutex` of the index specified by the argument from the lock management list (`self.mutex_list`)
+/// existing in the currently running process
+///
+/// # Parameter
+/// - `mutex_id`: Mutex index you want to **unlock**
+///
+/// # Return
+/// always 0
+pub fn mutex_unlock(mutex_id: usize) {
+    sys_mutex_unlock(mutex_id);
+}
+
+/// Create a new exclusion control.
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Parameter
+/// - `res_count`:Number of threads with concurrent access to shared resources.
+///
+/// ## Counting(General) semaphores (`res_count` >= 2):
+/// - Allow multiple threads with a maximum of `res_count` to access critical sections simultaneously
+///
+/// ## Binary semaphores(`res_count` == 1):
+/// - Only one thread has access to the critical section.
+/// - Semaphores restricted to values 0 and 1 (or locked/unlocked, disabled/enabled).
+/// - Provide similar functionality to `Mutex`.
+///
+/// ## Semaphore for synchronization purpose(`res_count` == 0):
+/// - If 0, calling up will always add to the task queue, and calling down will always cause the thread to wait.
+///   This mechanism allows synchronization of common variables of threads.
+///
+/// # Return
+/// Index of the lock list within one process of the created `Semaphore`.
+///
+/// # Example
+/// ```rust
+/// /// As `Counting Semaphores`
+/// let semaphore = Semaphore::new(2);
+///
+/// /// As `Mutex`
+/// let mutex_semaphore = Semaphore::new(1);
+///
+/// /// For `Sync Threads`
+/// let mutex_semaphore = Semaphore::new(0);
+/// ```
+pub fn semaphore_create(res_count: usize) -> isize {
+    sys_semaphore_create(res_count)
+}
+
+/// # V (Verhogen (Dutch), increase) operation
+/// Increment semaphores(`self.count`)
+///
+/// If `self.count` is less than or equal to 0, a waiting thread is popped
+/// from the top of the queue and added to the task queue (for the task to be executed).
+///
+/// # parameter
+/// - `sem_id`: Semaphore ID(Index of the lock list within one process of the created `Semaphore`.)
+///
+/// # Return
+/// always 0
+pub fn semaphore_up(sem_id: usize) {
+    sys_semaphore_up(sem_id);
+}
+
+/// # P (Proberen (Dutch), try) operation
+/// Decrement semaphores(`self.count`)
+///
+/// If `self.count` is less than 0, the currently running thread is added to the
+/// end of `self.wait_queue` and continues waiting for the lock to be released in the `Blocking` state.
+///
+/// # parameter
+/// - `sem_id`: Semaphore ID(Index of the lock list within one process of the created `Semaphore`.)
+///
+/// # Return
+/// always 0
+pub fn semaphore_down(sem_id: usize) {
+    sys_semaphore_down(sem_id);
+}
+
+/// Create Exclusive Control with Conditional Variable.
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Return
+/// Index of the lock list within one process of the created `Condvar`.
+pub fn condvar_create() -> isize {
+    sys_condvar_create(0)
+}
+
+/// Takes one thread from the head of the waiting thread queue and adds it to the task queue.
+///
+/// By resuming the thread with this method, the **`lock`** method of `Mutex` given the
+/// `Condvar.wait` method is finally called.
+///
+/// # parameter
+/// - `condvar_id`: Condvar ID(Index of the lock list within one process of the created `Condvar`.)
+///
+/// # Return
+/// Always 0
+pub fn condvar_signal(condvar_id: usize) {
+    sys_condvar_signal(condvar_id);
+}
+
+/// Wait until the lock is obtained in the following order.
+///
+/// 1. call the **`unlock`** method of `Mutex` given as the `mutex` argument.
+///
+/// 2. add the currently running thread to the end of the waiting thread queue,
+///    and keep that thread waiting with blocking.
+/// <br>
+/// 3. **When it is added to the task queue by `Condvar.signal`**,
+///    finally call the **`lock`** method of `Mutex` given as the `mutex_id` argument.
+///
+/// # parameters
+/// - `condvar_id`: Condvar ID(Index of the lock list within one process of the created `Condvar`.)
+/// - `mutex_id`: Mutex ID(Index of the lock list within one process of the created `Mutex`.)
+///
+/// # Return
+/// Always 0
+pub fn condvar_wait(condvar_id: usize, mutex_id: usize) {
+    sys_condvar_wait(condvar_id, mutex_id);
 }

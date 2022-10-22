@@ -1,7 +1,5 @@
 use bitflags::*;
 
-pub const MAX_SIG: usize = 31;
-
 bitflags! {
     /// Signals
     /// - https://man7.org/linux/man-pages/man2/sigaction.2.html
