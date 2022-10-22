@@ -142,6 +142,7 @@
     "vtable",
     "waitpid",
     "waittid",
+    "wakeup",
     "WRONLY",
     "xstate"
   ],
