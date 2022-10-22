@@ -662,3 +662,47 @@ pub fn semaphore_up(sem_id: usize) {
 pub fn semaphore_down(sem_id: usize) {
     sys_semaphore_down(sem_id);
 }
+
+/// Create Exclusive Control with Conditional Variable.
+/// - If there is an existing memory area for the old lock => reuse it and return its index
+/// - If not exist => push a new one and return its index
+///
+/// # Return
+/// Index of the lock list within one process of the created `Condvar`.
+pub fn condvar_create() -> isize {
+    sys_condvar_create(0)
+}
+
+/// Takes one thread from the head of the waiting thread queue and adds it to the task queue.
+///
+/// By resuming the thread with this method, the **`lock`** method of `Mutex` given the
+/// `Condvar.wait` method is finally called.
+///
+/// # parameter
+/// - `condvar_id`: Condvar ID(Index of the lock list within one process of the created `Condvar`.)
+///
+/// # Return
+/// Always 0
+pub fn condvar_signal(condvar_id: usize) {
+    sys_condvar_signal(condvar_id);
+}
+
+/// Wait until the lock is obtained in the following order.
+///
+/// 1. call the **`unlock`** method of `Mutex` given as the `mutex` argument.
+///
+/// 2. add the currently running thread to the end of the waiting thread queue,
+///    and keep that thread waiting with blocking.
+/// <br>
+/// 3. **When it is added to the task queue by `Condvar.signal`**,
+///    finally call the **`lock`** method of `Mutex` given as the `mutex_id` argument.
+///
+/// # parameters
+/// - `condvar_id`: Condvar ID(Index of the lock list within one process of the created `Condvar`.)
+/// - `mutex_id`: Mutex ID(Index of the lock list within one process of the created `Mutex`.)
+///
+/// # Return
+/// Always 0
+pub fn condvar_wait(condvar_id: usize, mutex_id: usize) {
+    sys_condvar_wait(condvar_id, mutex_id);
+}
