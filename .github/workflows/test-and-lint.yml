@@ -14,7 +14,7 @@ jobs:
     name: Set parameters
     runs-on: ubuntu-latest
     outputs:
-      TOOL_CHAIN: nightly-2022-08-28
+      TOOL_CHAIN: nightly-2022-10-28
     steps:
       - id: SET_PARAMS
         run: |

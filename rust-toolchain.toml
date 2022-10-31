@@ -1,6 +1,7 @@
 [toolchain]
 # rustup run nightly rustc --version
-channel = "nightly-2022-08-28"
+# - rustc 1.66.0-nightly (9565dfeb4 2022-10-28) (from rustc 1.66.0-nightly (758f19645 2022-10-24))
+channel = "nightly-2022-10-28"
 components = ["rust-src", "llvm-tools-preview", "rustfmt", "clippy"]
 profile = "minimal"
 targets = ["riscv64gc-unknown-none-elf"]

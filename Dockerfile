@@ -8,16 +8,19 @@ FROM ubuntu:20.04
 
 ARG QEMU_VERSION=7.0.0
 ARG HOME=/root
+ARG RUST_VERSION="nightly-2022-10-28"
 
 # 0. Install general tools
 ARG DEBIAN_FRONTEND=noninteractive
 
-# python3=3.8.2-0ubuntu2: python3 3.8.10
+# device-tree-compiler: For chapter9
 # gnupg2: for gpg commit
+# python3=3.8.2-0ubuntu2: python3 3.8.10
 # hadolint ignore=DL3008,DL3009,DL3015
 RUN apt-get update && \
     apt-get install -y \
     curl \
+    device-tree-compiler \
     git \
     gnupg2 \
     neovim \
@@ -68,7 +71,7 @@ RUN apt-get install -y \
 RUN apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# 1.7 Sanity checking
+# 1.8 Sanity checking
 # hadolint ignore=DL3059
 RUN gdb-multiarch --version
 
@@ -86,7 +89,7 @@ RUN curl -sSfL https://git.io/.gdbinit \
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
     PATH=/usr/local/cargo/bin:$PATH \
-    RUST_VERSION="nightly-2022-08-28"
+    RUST_VERSION=${RUST_VERSION}
 RUN set -eux; \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rustup-init; \
     chmod +x rustup-init; \
