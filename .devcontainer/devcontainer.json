@@ -3,6 +3,7 @@
     "../docker-compose.yml"
   ],
   "extensions": [
+    "WakaTime.vscode-wakatime",
     "alexclewontin.make-lsp-vscode",
     "davidanson.vscode-markdownlint",
     "eamodio.gitlens",
@@ -11,6 +12,8 @@
     "mhutchie.git-graph",
     "ms-vscode-remote.remote-containers",
     "ms-vscode.hexeditor",
+    "mutantdino.resourcemonitor",
+    "nordic-semiconductor.nrf-devicetree",
     "oderwat.indent-rainbow",
     "pkief.material-icon-theme",
     "redhat.vscode-yaml",
