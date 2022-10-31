@@ -4,7 +4,7 @@
 #![no_std]
 #![no_main]
 #![feature(naked_functions)]
-#![feature(asm)]
+#![allow(clippy::all)]
 
 extern crate alloc;
 #[macro_use]
@@ -12,7 +12,6 @@ extern crate user_lib;
 
 use core::arch::asm;
 
-#[macro_use]
 use alloc::vec;
 use alloc::vec::Vec;
 
@@ -36,6 +35,7 @@ enum State {
 }
 
 struct Task {
+    #[allow(unused)]
     id: usize,
     stack: Vec<u8>,
     ctx: TaskContext,
