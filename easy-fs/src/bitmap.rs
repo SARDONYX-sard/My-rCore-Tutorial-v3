@@ -68,7 +68,7 @@ impl Bitmap {
         // looks for a free bit in the block, and sets it to 1.
         for block_id in 0..self.blocks {
             let pos = get_block_cache(
-                block_id + self.start_block_id as usize,
+                block_id + self.start_block_id,
                 Arc::clone(block_device),
             )
             .lock()
@@ -90,7 +90,7 @@ impl Bitmap {
                 {
                     // modify cache
                     bitmap_block[bits64_pos] |= 1u64 << inner_pos;
-                    Some(block_id * BLOCK_BITS + bits64_pos * 64 + inner_pos as usize)
+                    Some(block_id * BLOCK_BITS + bits64_pos * 64 + inner_pos)
                 } else {
                     None
                 }
