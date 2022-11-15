@@ -160,6 +160,10 @@ impl<T> UPIntrFreeCell<T> {
 
     /// Mutably borrows the wrapped value.
     ///
+    /// Increment nested level.
+    /// - Clear supervisor interrupt enable bit(sie).
+    /// - Store supervisor interrupt enable bit(sie) if nested level is 0.
+    ///
     /// The borrow lasts until the returned `RefMut` or all `RefMut`s derived
     /// from it exit scope. The value cannot be borrowed while this borrow is
     /// active.
