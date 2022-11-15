@@ -167,7 +167,7 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
 /// It is to send a signal with the value signum to the process with process number pid.
 /// Specifically, it finds the process control block by `pid` and sets the bit corresponding to `signum`
 /// in the signal of that process control block to 1.
-pub fn sys_kill(pid: usize, signum: i32) -> isize {
+pub fn sys_kill(pid: usize, signum: u32) -> isize {
     // Extract corresponding task from process ID.
     if let Some(task) = pid2process(pid) {
         if let Some(flag) = SignalFlags::from_bits(1 << signum) {
