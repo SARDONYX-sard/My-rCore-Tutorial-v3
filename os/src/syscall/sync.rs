@@ -1,6 +1,19 @@
 use crate::sync::{Condvar, Mutex, MutexBlocking, MutexSpin, Semaphore};
-use crate::task::current_process;
+use crate::task::{block_current_and_run_next, current_process, current_task};
+use crate::timer::{add_timer, get_time_ms};
 use alloc::sync::Arc;
+
+/// Sleep for the milliseconds given in the `period_ms` argument.
+///
+/// # Parameter
+/// - `ms`: Milliseconds to sleep
+pub fn sys_sleep(ms: usize) -> isize {
+    let expire_ms = get_time_ms() + ms;
+    let task = current_task().unwrap();
+    add_timer(expire_ms, task);
+    block_current_and_run_next();
+    0
+}
 
 /// Create a new exclusion control.
 /// - If there is an existing memory area for the old lock => reuse it and return its index
@@ -242,6 +255,6 @@ pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
     let condvar = Arc::clone(process_inner.condvar_list[condvar_id].as_ref().unwrap());
     let mutex = Arc::clone(process_inner.mutex_list[mutex_id].as_ref().unwrap());
     drop(process_inner);
-    condvar.wait(mutex);
+    condvar.wait_with_mutex(mutex);
     0
 }
