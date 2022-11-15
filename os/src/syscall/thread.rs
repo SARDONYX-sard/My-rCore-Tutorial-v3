@@ -52,6 +52,20 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     new_task_tid as isize
 }
 
+/// Get thread ID of current running task
+///
+/// # Return
+/// Thread ID
+pub fn sys_gettid() -> isize {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .res
+        .as_ref()
+        .unwrap()
+        .tid as isize
+}
+
 /// Gets the status of whether the Thread with the specified ID is waiting or not.
 ///
 /// If it is waiting, deletes the thread with the ID from the array of waiting threads and returns an exit code.
