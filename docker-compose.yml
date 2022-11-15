@@ -5,8 +5,11 @@ services:
     build:
       context: ./ # Dockerfile/URL Path
       dockerfile: Dockerfile
-    image: dinghao188/rcore-tutorial:dev # imageName:tag
+    environment:
+      - DISPLAY # For GUI(use WSL wayland)
+    image: rv64-rust-os-dev:1.0 # imageName:tag
     tty: true # == `docker -t`
     stdin_open: true # == `docker -i`
     volumes:
-      - ./:/mnt/
+      - ./:/mnt/app
+      - /tmp/.X11-unix:/tmp/.X11-unix # For GUI(use WSL wayland)

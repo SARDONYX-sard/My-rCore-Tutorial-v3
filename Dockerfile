@@ -4,10 +4,13 @@
 # - ubuntu 18.04 -> 20.04
 # - qemu 5.0.0 -> 7.0.0
 # - Extensive comments linking to relevant documentation
-FROM ubuntu:20.04
+ARG UBUNTU_VERSION=20.04
 
-ARG QEMU_VERSION=7.0.0
+FROM ubuntu:${UBUNTU_VERSION}
+
+#! The following ARG must be written below the FROM clause or it is an error (because it is used within FROM)
 ARG HOME=/root
+ARG QEMU_VERSION=7.0.0
 ARG RUST_VERSION="nightly-2022-10-28"
 
 # 0. Install general tools
@@ -93,9 +96,9 @@ ENV RUSTUP_HOME=/usr/local/rustup \
 RUN set -eux; \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o rustup-init; \
     chmod +x rustup-init; \
-    ./rustup-init -y --no-modify-path --profile minimal --default-toolchain $RUST_VERSION; \
+    ./rustup-init -y --no-modify-path --profile minimal --default-toolchain ${RUST_VERSION}; \
     rm rustup-init; \
-    chmod -R a+w $RUSTUP_HOME $CARGO_HOME;
+    chmod -R a+w ${RUSTUP_HOME} ${CARGO_HOME};
 
 # 2.2. Sanity checking
 RUN rustup --version && \
