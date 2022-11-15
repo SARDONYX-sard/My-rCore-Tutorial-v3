@@ -1,10 +1,10 @@
 //! Types related to task management
 use super::id::TaskUserRes;
 use super::{kstack_alloc, KernelStack, ProcessControlBlock, TaskContext};
+use crate::mm::PhysPageNum;
+use crate::sync::{UPIntrFreeCell, UPIntrRefMut};
 use crate::trap::TrapContext;
-use crate::{mm::PhysPageNum, sync::UPSafeCell};
 use alloc::sync::{Arc, Weak};
-use core::cell::RefMut;
 
 /// A structure of the components of a single thread task
 pub struct TaskControlBlock {
@@ -16,11 +16,11 @@ pub struct TaskControlBlock {
 
     // - mutable
     /// Mutable information of the thread
-    inner: UPSafeCell<TaskControlBlockInner>,
+    inner: UPIntrFreeCell<TaskControlBlockInner>,
 }
 
 impl TaskControlBlock {
-    pub fn inner_exclusive_access(&self) -> RefMut<'_, TaskControlBlockInner> {
+    pub fn inner_exclusive_access(&self) -> UPIntrRefMut<'_, TaskControlBlockInner> {
         self.inner.exclusive_access()
     }
 
@@ -89,7 +89,7 @@ impl TaskControlBlock {
             process: Arc::downgrade(&process),
             kstack,
             inner: unsafe {
-                UPSafeCell::new(TaskControlBlockInner {
+                UPIntrFreeCell::new(TaskControlBlockInner {
                     res: Some(res),
                     trap_cx_ppn,
                     task_cx: TaskContext::goto_trap_return(kstack_top),

@@ -1,5 +1,8 @@
-use crate::sync::{Mutex, UPSafeCell};
-use crate::task::{add_task, block_current_and_run_next, current_task, TaskControlBlock};
+use crate::sync::{Mutex, UPIntrFreeCell};
+use crate::task::{
+    add_task, block_current_and_run_next, block_current_task, current_task, TaskContext,
+    TaskControlBlock,
+};
 use alloc::{collections::VecDeque, sync::Arc};
 
 /// # Exclusive control by Conditional variable
@@ -9,7 +12,7 @@ use alloc::{collections::VecDeque, sync::Arc};
 /// A system that performs exclusion control by having a common resource (e.g., static variable) call
 /// wait on one thread during certain conditions and having the other thread satisfy the conditions and call signal.
 pub struct Condvar {
-    pub inner: UPSafeCell<CondvarInner>,
+    pub inner: UPIntrFreeCell<CondvarInner>,
 }
 
 /// inner for mutable exclusive control
@@ -31,7 +34,7 @@ impl Condvar {
     pub fn new() -> Self {
         Self {
             inner: unsafe {
-                UPSafeCell::new(CondvarInner {
+                UPIntrFreeCell::new(CondvarInner {
                     wait_queue: VecDeque::new(),
                 })
             },
@@ -49,6 +52,22 @@ impl Condvar {
         }
     }
 
+    // pub fn wait(&self, mutex: Arc<dyn Mutex>) {
+    //     mutex.unlock();
+    //     let mut inner = self.inner.exclusive_access();
+    //     inner.wait_queue.push_back(current_task().unwrap());
+    //     drop(inner);
+    //     block_current_and_run_next();
+    //     mutex.lock();
+    // }
+
+    pub fn wait_no_sched(&self) -> *mut TaskContext {
+        self.inner.exclusive_session(|inner| {
+            inner.wait_queue.push_back(current_task().unwrap());
+        });
+        block_current_task()
+    }
+
     /// Wait until the lock is obtained in the following order.
     ///
     /// 1. call the **`unlock`** method of `Mutex` given as the `mutex` argument.
@@ -58,11 +77,11 @@ impl Condvar {
     /// <br>
     /// 3. **When it is added to the task queue by `Condvar.signal`**,
     ///    finally call the **`lock`** method of `Mutex` given as the `mutex` argument.
-    pub fn wait(&self, mutex: Arc<dyn Mutex>) {
+    pub fn wait_with_mutex(&self, mutex: Arc<dyn Mutex>) {
         mutex.unlock();
-        let mut inner = self.inner.exclusive_access();
-        inner.wait_queue.push_back(current_task().unwrap());
-        drop(inner);
+        self.inner.exclusive_session(|inner| {
+            inner.wait_queue.push_back(current_task().unwrap());
+        });
         block_current_and_run_next();
         mutex.lock();
     }

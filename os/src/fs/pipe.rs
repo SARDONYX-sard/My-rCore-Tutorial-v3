@@ -1,4 +1,4 @@
-use crate::{sync::UPSafeCell, task::suspend_current_and_run_next};
+use crate::{sync::UPIntrFreeCell, task::suspend_current_and_run_next};
 use alloc::sync::{Arc, Weak};
 
 use super::File;
@@ -7,7 +7,7 @@ use super::File;
 pub struct Pipe {
     readable: bool,
     writable: bool,
-    buffer: Arc<UPSafeCell<PipeRingBuffer>>,
+    buffer: Arc<UPIntrFreeCell<PipeRingBuffer>>,
 }
 
 impl Pipe {
@@ -15,7 +15,7 @@ impl Pipe {
     /// - readable: true
     /// - writable: false
     /// - buffer: first argument
-    pub fn read_end_with_buffer(buffer: Arc<UPSafeCell<PipeRingBuffer>>) -> Self {
+    pub fn read_end_with_buffer(buffer: Arc<UPIntrFreeCell<PipeRingBuffer>>) -> Self {
         Self {
             readable: true,
             writable: false,
@@ -27,7 +27,7 @@ impl Pipe {
     /// - readable: false
     /// - writable: true
     /// - buffer: first argument
-    pub fn write_end_with_buffer(buffer: Arc<UPSafeCell<PipeRingBuffer>>) -> Self {
+    pub fn write_end_with_buffer(buffer: Arc<UPIntrFreeCell<PipeRingBuffer>>) -> Self {
         Self {
             readable: false,
             writable: true,
@@ -162,7 +162,7 @@ impl PipeRingBuffer {
 /// # Return
 /// (read_end, write_end)
 pub fn make_pipe() -> (Arc<Pipe>, Arc<Pipe>) {
-    let buffer = Arc::new(unsafe { UPSafeCell::new(PipeRingBuffer::new()) });
+    let buffer = Arc::new(unsafe { UPIntrFreeCell::new(PipeRingBuffer::new()) });
     let read_end = Arc::new(Pipe::read_end_with_buffer(buffer.clone()));
     let write_end = Arc::new(Pipe::write_end_with_buffer(buffer.clone()));
     buffer.exclusive_access().set_write_end(&write_end);

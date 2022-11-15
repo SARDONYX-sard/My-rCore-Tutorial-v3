@@ -5,7 +5,7 @@
 //! `UPSafeCell<OSInodeInner>` -> `OSInode`: for static `ROOT_INODE`,we
 //! need to wrap `OSInodeInner` into `UPSafeCell`
 use super::File;
-use crate::{drivers::BLOCK_DEVICE, sync::UPSafeCell};
+use crate::{drivers::BLOCK_DEVICE, sync::UPIntrFreeCell};
 use alloc::sync::Arc;
 use alloc::vec::Vec;
 use easy_fs::{EasyFileSystem, Inode};
@@ -19,7 +19,7 @@ pub struct OSInode {
     /// Whether the file is allowed to be write by `sys_write` or not.
     writable: bool,
 
-    inner: UPSafeCell<OSInodeInner>,
+    inner: UPIntrFreeCell<OSInodeInner>,
 }
 
 /// The OS inode inner in 'UPSafeCell'
@@ -37,7 +37,7 @@ impl OSInode {
         Self {
             readable,
             writable,
-            inner: unsafe { UPSafeCell::new(OSInodeInner { offset: 0, inode }) },
+            inner: unsafe { UPIntrFreeCell::new(OSInodeInner { offset: 0, inode }) },
         }
     }
 

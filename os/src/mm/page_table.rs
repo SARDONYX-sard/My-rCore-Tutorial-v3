@@ -270,7 +270,7 @@ impl PageTable {
         //?       but just panic out. So you can see a lot of unwrap in the preceding code,
         //?       which is not recommended by Rust, but just for simplicity's sake.
         let pte = self.find_pte_create(vpn).unwrap();
-        assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
+        assert!(!pte.is_valid(), "vpn {vpn:?} is mapped before mapping");
         *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
     }
 
@@ -279,7 +279,7 @@ impl PageTable {
     /// and fills it with zero.
     pub fn unmap(&mut self, vpn: VirtPageNum) {
         let pte = self.find_pte(vpn).unwrap();
-        assert!(pte.is_valid(), "vpn {:?} is invalid before unmapping", vpn);
+        assert!(pte.is_valid(), "vpn {vpn:?} is invalid before unmapping");
         *pte = PageTableEntry::empty();
     }
 

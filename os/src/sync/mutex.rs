@@ -1,4 +1,4 @@
-use super::UPSafeCell;
+use super::UPIntrFreeCell;
 use crate::task::TaskControlBlock;
 use crate::task::{add_task, current_task};
 use crate::task::{block_current_and_run_next, suspend_current_and_run_next};
@@ -78,7 +78,7 @@ pub struct MutexSpin {
     /// Exclusive variable lock flag
     ///
     /// Currently locked?
-    locked: UPSafeCell<bool>,
+    locked: UPIntrFreeCell<bool>,
 }
 
 impl MutexSpin {
@@ -90,7 +90,7 @@ impl MutexSpin {
     /// ```
     pub fn new() -> Self {
         Self {
-            locked: unsafe { UPSafeCell::new(false) },
+            locked: unsafe { UPIntrFreeCell::new(false) },
         }
     }
 }
@@ -131,7 +131,7 @@ impl Mutex for MutexSpin {
 /// | thread4 | state `Blocking`  and push_back to wait queue |                                                                             |
 pub struct MutexBlocking {
     /// Structure with variable fields storing locked, wait_queue(for thread)
-    inner: UPSafeCell<MutexBlockingInner>,
+    inner: UPIntrFreeCell<MutexBlockingInner>,
 }
 
 /// inner for mutable exclusive control
@@ -154,7 +154,7 @@ impl MutexBlocking {
     pub fn new() -> Self {
         Self {
             inner: unsafe {
-                UPSafeCell::new(MutexBlockingInner {
+                UPIntrFreeCell::new(MutexBlockingInner {
                     locked: false,
                     wait_queue: VecDeque::new(),
                 })

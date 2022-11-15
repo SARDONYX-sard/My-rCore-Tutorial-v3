@@ -1,4 +1,4 @@
-use crate::sync::UPSafeCell;
+use crate::sync::UPIntrFreeCell;
 use crate::task::{add_task, block_current_and_run_next, current_task, TaskControlBlock};
 use alloc::{collections::VecDeque, sync::Arc};
 
@@ -12,7 +12,7 @@ use alloc::{collections::VecDeque, sync::Arc};
 /// let semaphore = Semaphore::new(2);
 /// ```
 pub struct Semaphore {
-    pub inner: UPSafeCell<SemaphoreInner>,
+    pub inner: UPIntrFreeCell<SemaphoreInner>,
 }
 
 /// inner for mutable exclusive control
@@ -58,7 +58,7 @@ impl Semaphore {
     pub fn new(res_count: usize) -> Self {
         Self {
             inner: unsafe {
-                UPSafeCell::new(SemaphoreInner {
+                UPIntrFreeCell::new(SemaphoreInner {
                     count: res_count as isize,
                     wait_queue: VecDeque::new(),
                 })
