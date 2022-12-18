@@ -13,6 +13,7 @@
     "mutantdino.resourcemonitor",
     "oderwat.indent-rainbow",
     "pkief.material-icon-theme",
+    "plorefice.devicetree",
     "redhat.vscode-yaml",
     "richie5um2.vscode-sort-json",
     "rust-lang.rust-analyzer",
@@ -22,8 +23,7 @@
     "tamasfe.even-better-toml",
     "tyriar.sort-lines",
     "yzhang.markdown-all-in-one",
-    "zhwu95.riscv",
-    "plorefice.devicetree"
+    "zhwu95.riscv"
   ],
   "features": {
     "github-cli": "latest"
