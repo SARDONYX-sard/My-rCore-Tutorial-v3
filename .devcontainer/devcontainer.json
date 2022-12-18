@@ -1,20 +1,7 @@
 // - https://code.visualstudio.com/docs/devcontainers/containers#_using-ssh-keys
 {
-  "build": {
-    "args": {
-      "HOME": "/root", // We can overwrite Dockerfile
-      "QEMU_VERSION": "7.0.0", // We can overwrite Dockerfile
-      "RUST_VERSION": "nightly-2022-10-28", // Sync rust-toolchain.toml, GitHub action, Dockerfile
-      "UBUNTU_VERSION": "20.04" // We can overwrite Dockerfile
-    },
-    "dockerfile": "../Dockerfile"
-  },
-  "containerEnv": {
-    //! Windows only! for GUI(use WSL wayland)
-    "DISPLAY": ":0"
-  },
+  "dockerComposeFile": "../docker-compose.yml",
   "extensions": [
-    "WakaTime.vscode-wakatime",
     "alexclewontin.make-lsp-vscode",
     "davidanson.vscode-markdownlint",
     "eamodio.gitlens",
@@ -24,7 +11,6 @@
     "ms-vscode-remote.remote-containers",
     "ms-vscode.hexeditor",
     "mutantdino.resourcemonitor",
-    "nordic-semiconductor.nrf-devicetree",
     "oderwat.indent-rainbow",
     "pkief.material-icon-theme",
     "redhat.vscode-yaml",
@@ -36,24 +22,13 @@
     "tamasfe.even-better-toml",
     "tyriar.sort-lines",
     "yzhang.markdown-all-in-one",
-    "zhwu95.riscv"
+    "zhwu95.riscv",
+    "plorefice.devicetree"
   ],
   "features": {
-    "git": "latest",
     "github-cli": "latest"
   },
-  "mounts": [
-    // pwd mount
-    // - https://containers.dev/implementors/json_reference/#variables-in-devcontainerjson
-    "source=${localWorkspaceFolder},target=/mnt/app,type=bind",
-    //
-    //! Windows only! for GUI(use WSL wayland)
-    // - https://docs.docker.com/desktop/windows/wsl/#best-practices
-    // - https://stackoverflow.com/questions/43181654/locating-data-volumes-in-docker-desktop-windows
-    // - https://www.docker.com/blog/new-docker-desktop-wsl2-backend/
-    // "source=\\\\wsl.localhost\\Ubuntu\\tmp\\.X11-unix,target=/tmp/.X11-unix,type=bind"
-    "source=\\\\wsl.localhost\\kali-linux\\tmp\\.X11-unix,target=/tmp/.X11-unix,type=bind"
-  ],
   "name": "RV64 RustOS-dev",
+  "service": "app",
   "workspaceFolder": "/mnt/app"
 }

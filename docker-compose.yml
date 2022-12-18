@@ -1,15 +1,19 @@
-version: "3.9"
-
 services:
   app:
     build:
       context: ./ # Dockerfile/URL Path
       dockerfile: Dockerfile
     environment:
-      - DISPLAY # For GUI(use WSL wayland)
+      - DISPLAY=:0 #! Windows WSL only! for GUI
+      - HOME=/root                      # We can overwrite Dockerfile
+      - QEMU_VERSION=7.0.0              # We can overwrite Dockerfile
+      - RUST_VERSION=nightly-2022-10-28 # Sync rust-toolchain.toml, GitHub action, Dockerfile
+      - UBUNTU_VERSION=20.04            # We can overwrite Dockerfile
     image: rv64-rust-os-dev:1.0 # imageName:tag
     tty: true # == `docker -t`
     stdin_open: true # == `docker -i`
     volumes:
       - ./:/mnt/app
-      - /tmp/.X11-unix:/tmp/.X11-unix # For GUI(use WSL wayland)
+      # https://docs.docker.com/desktop/windows/wsl/#best-practices
+      # https://www.docker.com/blog/new-docker-desktop-wsl2-backend/
+      # - /tmp/.X11-unix:/tmp/.X11-unix #! Windows WSL only! for GUI
